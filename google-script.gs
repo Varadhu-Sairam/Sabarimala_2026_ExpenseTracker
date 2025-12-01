@@ -575,7 +575,7 @@ function getOrCreateSheet(spreadsheet, sheetName) {
     } else if (sheetName === 'Expenses') {
       sheet.appendRow(['Date', 'Description', 'Amount', 'Paid By', 'Split Between', 'Status']);
     } else if (sheetName === 'Settlements') {
-      sheet.appendRow(['Settlement ID', 'From', 'To', 'Amount', 'Confirmed By', 'Confirmed At']);
+      sheet.appendRow(['Settlement ID', 'From', 'To', 'Amount', 'Confirmed By', 'Confirmed At', 'Status']);
     }
   }
   
@@ -752,69 +752,6 @@ function getUserLinks(sheet) {
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
     links: linkData
-  })).setMimeType(ContentService.MimeType.JSON);
-}
-
-function registerUser(sheet, data) {
-  const registrationsSheet = getOrCreateSheet(sheet, 'Registrations');
-  const participantsSheet = getOrCreateSheet(sheet, 'Participants');
-  const name = data.name;
-  
-  if (!name) {
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      error: 'Name is required'
-    })).setMimeType(ContentService.MimeType.JSON);
-  }
-  
-  // Check if already a participant
-  const participants = participantsSheet.getDataRange().getValues();
-  for (let i = 1; i < participants.length; i++) {
-    if (participants[i][0] === name) {
-      return ContentService.createTextOutput(JSON.stringify({
-        success: false,
-        error: 'You are already registered'
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-  }
-  
-  // Check if already requested
-  const registrations = registrationsSheet.getDataRange().getValues();
-  for (let i = 1; i < registrations.length; i++) {
-    if (registrations[i][0] === name && registrations[i][2] === 'Pending') {
-      return ContentService.createTextOutput(JSON.stringify({
-        success: false,
-        error: 'Registration request already pending approval'
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-  }
-  
-  registrationsSheet.appendRow([name, new Date(), 'Pending']);
-  
-  return ContentService.createTextOutput(JSON.stringify({
-    success: true,
-    message: 'Registration request submitted. Please wait for admin approval.'
-  })).setMimeType(ContentService.MimeType.JSON);
-}
-
-function getPendingRegistrations(sheet) {
-  const registrationsSheet = getOrCreateSheet(sheet, 'Registrations');
-  const data = registrationsSheet.getDataRange().getValues();
-  
-  const pending = [];
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][2] === 'Pending') {
-      pending.push({
-        name: data[i][0],
-        requestedAt: data[i][1],
-        rowIndex: i + 1
-      });
-    }
-  }
-  
-  return ContentService.createTextOutput(JSON.stringify({
-    success: true,
-    registrations: pending
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
