@@ -66,6 +66,13 @@
         <div class="setup-step">
             <h3>Step 1: Group Information</h3>
             <div class="form-group">
+                <label>Admin Name:</label>
+                <input type="text" id="adminName" placeholder="Your name" value="">
+                <p style="font-size: 13px; color: #666; margin-top: 5px;">
+                    You'll be added as the first participant (admin).
+                </p>
+            </div>
+            <div class="form-group">
                 <label>Group Name:</label>
                 <input type="text" id="groupName" placeholder="e.g., Sabarimala 2026 Trip" value="Sabarimala 2026">
             </div>
@@ -181,17 +188,21 @@
             return key;
         }
         
-        // Display Apps Script code with keys filled in
+        // Display Apps Script code with keys and admin name filled in
         function displayScriptCode() {
+            const adminName = document.getElementById('adminName').value.trim() || 'Admin';
+            
             fetch('google-script.gs')
                 .then(r => r.text())
                 .then(code => {
-                    // Replace placeholders with actual keys
+                    // Replace placeholders with actual keys and admin name
                     if (generatedAdminKey && generatedUserKey) {
                         code = code.replace("const ADMIN_KEY = 'GENERATE_RANDOM_KEY_HERE';", 
                                           `const ADMIN_KEY = '${generatedAdminKey}';`);
                         code = code.replace("const USER_KEY = 'GENERATE_RANDOM_KEY_HERE';", 
                                           `const USER_KEY = '${generatedUserKey}';`);
+                        code = code.replace("const ADMIN_NAME = 'Admin';", 
+                                          `const ADMIN_NAME = '${adminName.replace(/'/g, "\\'")}';`);
                     }
                     document.getElementById('scriptCode').textContent = code;
                 })
@@ -208,6 +219,12 @@
         };
         
         window.generateKeys = function() {
+            const adminName = document.getElementById('adminName').value.trim();
+            if (!adminName) {
+                showStatus('Please enter admin name first', 'error');
+                return;
+            }
+            
             generatedAdminKey = generateRandomKey(32);
             generatedUserKey = generateRandomKey(32);
             groupId = 'group_' + Date.now();

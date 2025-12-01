@@ -12,6 +12,9 @@ const ADMIN_KEY = 'GENERATE_RANDOM_KEY_HERE';  // Change this!
 // User key: Can submit expenses and settlements
 const USER_KEY = 'GENERATE_RANDOM_KEY_HERE';   // Change this!
 
+// Admin name (will be added as first participant)
+const ADMIN_NAME = 'Admin';  // Change this!
+
 // ========================================
 
 function doGet(e) {
@@ -321,6 +324,7 @@ function getOrCreateSheet(spreadsheet, sheetName) {
     // Add headers based on sheet type
     if (sheetName === 'Participants') {
       sheet.appendRow(['Name']);
+      sheet.appendRow([ADMIN_NAME]); // Add admin as default participant
     } else if (sheetName === 'Expenses') {
       sheet.appendRow(['Date', 'Description', 'Amount', 'Paid By', 'Split Between', 'Status']);
     } else if (sheetName === 'Settlements') {
