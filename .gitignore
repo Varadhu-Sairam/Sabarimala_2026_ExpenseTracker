@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+.DS_Store?
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary files
+*.tmp
+
+# Backup files
+*-old.*
+*.bak
+*.backup
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
