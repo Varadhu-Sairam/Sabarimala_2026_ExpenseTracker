@@ -56,11 +56,21 @@ window.registerUser = async function() {
 
 // === TAB NAVIGATION ===
 
-window.switchTab = function(tabName) {
+window.switchTab = function(tabName, event) {
     document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     
-    event.target.classList.add('active');
+    if (event && event.target) {
+        event.target.classList.add('active');
+    } else {
+        // Fallback: find button by tab name
+        const buttons = document.querySelectorAll('.tab');
+        buttons.forEach(btn => {
+            if (btn.onclick && btn.onclick.toString().includes(`'${tabName}'`)) {
+                btn.classList.add('active');
+            }
+        });
+    }
     document.getElementById(tabName).classList.add('active');
     
     // Load data when switching to specific tabs
