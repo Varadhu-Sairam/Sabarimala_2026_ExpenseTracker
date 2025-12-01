@@ -126,22 +126,6 @@ window.submitExpense = async function() {
     }
 };
 
-window.approveExpense = async function(index) {
-    try {
-        const result = await API.post('approveExpense', { index });
-        
-        if (result.success) {
-            Utils.showStatus('Expense approved!', 'success');
-            await loadPendingExpenses();
-            await loadExpenses();
-        } else {
-            Utils.showStatus('Error: ' + (result.error || 'Failed to approve expense'), 'error');
-        }
-    } catch (error) {
-        Utils.showStatus('Error approving expense', 'error');
-    }
-};
-
 window.toggleEditMode = function(index) {
     const item = document.getElementById(`pending-${index}`);
     const isEditing = item.classList.contains('editing');

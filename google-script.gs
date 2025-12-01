@@ -561,7 +561,7 @@ function calculateAndStoreSettlements(sheet) {
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
-    settlements: settlements,
+    pendingSettlements: settlements,
     message: 'Settlements calculated and stored'
   })).setMimeType(ContentService.MimeType.JSON);
 }
