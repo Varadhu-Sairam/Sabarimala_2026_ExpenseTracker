@@ -342,21 +342,25 @@
             // Parse URL to get access key
             const urlParams = new URLSearchParams(window.location.search);
             const key = urlParams.get('key');
-            const groupId = urlParams.get('group');
             
-            if (!key || !groupId) {
+            if (!key) {
                 document.getElementById('statusMessage').innerHTML = 
                     '<div class="status-message status-error">Invalid access link. Please use the link provided by your admin.</div>';
                 return;
             }
             
             // Load group config
-            const groups = JSON.parse(localStorage.getItem('expenseGroups') || '[]');
-            const group = groups.find(g => g.id === groupId);
-            
-            if (!group || !group.apiUrl) {
+            const groupConfig = localStorage.getItem('expenseGroupConfig');
+            if (!groupConfig) {
                 document.getElementById('statusMessage').innerHTML = 
                     '<div class="status-message status-error">Group configuration not found. Please contact your admin.</div>';
+                return;
+            }
+            
+            const group = JSON.parse(groupConfig);
+            if (!group.apiUrl) {
+                document.getElementById('statusMessage').innerHTML = 
+                    '<div class="status-message status-error">Invalid group configuration. Please contact your admin.</div>';
                 return;
             }
             

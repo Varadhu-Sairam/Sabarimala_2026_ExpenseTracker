@@ -176,7 +176,6 @@
     <script>
         let generatedAdminKey = '';
         let generatedUserKey = '';
-        let groupId = '';
         
         // Generate random key
         function generateRandomKey(length = 32) {
@@ -227,7 +226,6 @@
             
             generatedAdminKey = generateRandomKey(32);
             generatedUserKey = generateRandomKey(32);
-            groupId = 'group_' + Date.now();
             
             document.getElementById('adminKey').textContent = generatedAdminKey;
             document.getElementById('userKey').textContent = generatedUserKey;
@@ -258,20 +256,17 @@
             
             // Save group config to localStorage
             const groupConfig = {
-                id: groupId,
                 name: groupName,
                 sheetUrl: sheetUrl,
                 apiUrl: webAppUrl
             };
             
-            const groups = JSON.parse(localStorage.getItem('expenseGroups') || '[]');
-            groups.push(groupConfig);
-            localStorage.setItem('expenseGroups', JSON.stringify(groups));
+            localStorage.setItem('expenseGroupConfig', JSON.stringify(groupConfig));
             
             // Generate links
             const baseUrl = window.location.origin + window.location.pathname.replace('setup.html', '');
-            const adminLink = `${baseUrl}admin.html?key=${encodeURIComponent(generatedAdminKey)}&group=${encodeURIComponent(groupId)}`;
-            const userLink = `${baseUrl}user.html?key=${encodeURIComponent(generatedUserKey)}&group=${encodeURIComponent(groupId)}`;
+            const adminLink = `${baseUrl}admin.html?key=${encodeURIComponent(generatedAdminKey)}`;
+            const userLink = `${baseUrl}user.html?key=${encodeURIComponent(generatedUserKey)}`;
             
             document.getElementById('adminLink').textContent = adminLink;
             document.getElementById('userLink').textContent = userLink;
