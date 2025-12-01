@@ -225,7 +225,7 @@ window.rejectExpense = async function(index) {
 // === SETTLEMENT CONFIRMATION ===
 
 window.confirmSettlement = async function(from, to, amount) {
-    const confirmedBy = prompt(`Confirming settlement:\n${from} pays ₹${amount.toFixed(2)} to ${to}\n\nEnter your name to confirm:`);
+    const confirmedBy = prompt(`Settlement Confirmation:\n${from} pays ₹${amount.toFixed(2)} to ${to}\n\nOnly ${to} or admin can confirm this settlement.\nEnter your name to confirm:`);
     
     if (!confirmedBy || confirmedBy.trim() === '') {
         return;

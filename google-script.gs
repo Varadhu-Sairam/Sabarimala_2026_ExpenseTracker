@@ -164,7 +164,7 @@ function doPost(e) {
     } else if (data.action === 'updateExpense') {
       return updateExpense(sheet, data, isAdmin);
     } else if (data.action === 'confirmSettlement') {
-      return confirmSettlement(sheet, data);
+      return confirmSettlement(sheet, data, isAdmin);
     }
     
     return ContentService.createTextOutput(JSON.stringify({
@@ -584,8 +584,18 @@ function calculateAndStoreSettlements(sheet) {
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
-function confirmSettlement(sheet, data) {
+function confirmSettlement(sheet, data, isAdmin) {
   const settlementsSheet = getOrCreateSheet(sheet, 'Settlements');
+  
+  // Validate that confirmedBy is either the creditor (to) or admin
+  const isCreditor = data.confirmedBy.toLowerCase() === data.to.toLowerCase();
+  
+  if (!isAdmin && !isCreditor) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: 'Only the person receiving the payment or admin can confirm this settlement'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
   
   // Find the settlement row and update it
   const settlements = settlementsSheet.getDataRange().getValues();
