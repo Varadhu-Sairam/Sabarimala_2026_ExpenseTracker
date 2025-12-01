@@ -159,13 +159,24 @@ const API = {
             credential: AppState.googleCredential,
             ...data
         };
-        
+
+        // Use form-encoded body to avoid CORS preflight and keep request "simple"
+        const form = new URLSearchParams();
+        Object.entries(payload).forEach(([key, value]) => {
+            if (value === undefined || value === null) return;
+            if (typeof value === 'object') {
+                form.append(key, JSON.stringify(value));
+            } else {
+                form.append(key, String(value));
+            }
+        });
+
         const response = await fetch(CONFIG.API_URL, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/x-www-form-urlencoded'
             },
-            body: JSON.stringify(payload)
+            body: form.toString()
         });
         
         if (!response.ok) {
