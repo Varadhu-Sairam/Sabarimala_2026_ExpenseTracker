@@ -1,0 +1,640 @@
+/**
+ * Admin Page Functions
+ * Handles admin-specific functionality for participant management, expense approval, and settlements
+ */
+
+import { CONFIG, AppState, Utils } from './config.js';
+import { API } from './api.js';
+
+// === TAB NAVIGATION ===
+
+window.switchTab = function(tabName) {
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    
+    event.target.classList.add('active');
+    document.getElementById(tabName).classList.add('active');
+};
+
+// === PARTICIPANT MANAGEMENT ===
+
+window.addParticipant = async function() {
+    const name = document.getElementById('participantName').value.trim();
+    
+    if (!name) {
+        Utils.showStatus('Please enter a participant name', 'error');
+        return;
+    }
+    
+    try {
+        const result = await API.post('addParticipant', { name });
+        
+        if (result.success) {
+            Utils.showStatus('Participant added!', 'success');
+            document.getElementById('participantName').value = '';
+            await loadParticipants();
+        } else {
+            Utils.showStatus('Error: ' + (result.error || 'Failed to add participant'), 'error');
+        }
+    } catch (error) {
+        Utils.showStatus('Error adding participant', 'error');
+    }
+};
+
+window.removeParticipant = async function(name) {
+    if (!confirm(`Remove ${name}?`)) return;
+    
+    try {
+        const result = await API.post('removeParticipant', { name });
+        
+        if (result.success) {
+            Utils.showStatus('Participant removed', 'success');
+            await loadParticipants();
+        } else {
+            Utils.showStatus('Error: ' + (result.error || 'Failed to remove participant'), 'error');
+        }
+    } catch (error) {
+        Utils.showStatus('Error removing participant', 'error');
+    }
+};
+
+// === EXPENSE MANAGEMENT ===
+
+window.submitExpense = async function() {
+    const date = document.getElementById('expenseDate').value;
+    const description = document.getElementById('expenseDescription').value;
+    const amount = parseFloat(document.getElementById('expenseAmount').value);
+    const paidBy = document.getElementById('expensePaidBy').value;
+    
+    const splitCheckboxes = document.querySelectorAll('#splitCheckboxes input:checked');
+    const splitBetween = Array.from(splitCheckboxes).map(cb => cb.value);
+    
+    if (!date || !description || !amount || !paidBy || splitBetween.length === 0) {
+        Utils.showStatus('Please fill all fields', 'error');
+        return;
+    }
+    
+    try {
+        const result = await API.post('addExpense', {
+            expense: { date, description, amount, paidBy, splitBetween }
+        });
+        
+        if (result.success) {
+            Utils.showStatus('Expense added!', 'success');
+            
+            // Clear form
+            document.getElementById('expenseDescription').value = '';
+            document.getElementById('expenseAmount').value = '';
+            document.getElementById('expensePaidBy').value = '';
+            document.querySelectorAll('#splitCheckboxes input').forEach(cb => cb.checked = false);
+            
+            await loadExpenses();
+        } else {
+            Utils.showStatus('Error: ' + (result.error || 'Failed to add expense'), 'error');
+        }
+    } catch (error) {
+        Utils.showStatus('Error adding expense', 'error');
+    }
+};
+
+window.approveExpense = async function(index) {
+    try {
+        const result = await API.post('approveExpense', { index });
+        
+        if (result.success) {
+            Utils.showStatus('Expense approved!', 'success');
+            await loadPendingExpenses();
+            await loadExpenses();
+        } else {
+            Utils.showStatus('Error: ' + (result.error || 'Failed to approve expense'), 'error');
+        }
+    } catch (error) {
+        Utils.showStatus('Error approving expense', 'error');
+    }
+};
+
+window.approveEditedExpense = async function(index) {
+    try {
+        // Get edited values
+        const date = document.getElementById(`date-${index}`).value;
+        const description = document.getElementById(`desc-${index}`).value;
+        const amount = parseFloat(document.getElementById(`amt-${index}`).value);
+        const paidBy = document.getElementById(`paidby-${index}`).value;
+        const splitString = document.getElementById(`split-${index}`).value;
+        const splitBetween = splitString.split(',').map(s => s.trim()).filter(s => s);
+        
+        if (!date || !description || !amount || !paidBy || splitBetween.length === 0) {
+            Utils.showStatus('Please fill all fields', 'error');
+            return;
+        }
+        
+        // Update expense first
+        const updateResult = await API.post('updateExpense', {
+            index,
+            expense: { date, description, amount, paidBy, splitBetween }
+        });
+        
+        if (!updateResult.success) {
+            Utils.showStatus('Error: ' + (updateResult.error || 'Failed to update expense'), 'error');
+            return;
+        }
+        
+        // Then approve
+        const approveResult = await API.post('approveExpense', { index });
+        
+        if (approveResult.success) {
+            Utils.showStatus('Expense updated and approved!', 'success');
+            await loadPendingExpenses();
+            await loadExpenses();
+        } else {
+            Utils.showStatus('Error: ' + (approveResult.error || 'Failed to approve expense'), 'error');
+        }
+    } catch (error) {
+        Utils.showStatus('Error processing expense', 'error');
+    }
+};
+
+window.rejectExpense = async function(index) {
+    if (!confirm('Reject this expense?')) return;
+    
+    try {
+        const result = await API.post('rejectExpense', { index });
+        
+        if (result.success) {
+            Utils.showStatus('Expense rejected', 'success');
+            await loadPendingExpenses();
+        } else {
+            Utils.showStatus('Error: ' + (result.error || 'Failed to reject expense'), 'error');
+        }
+    } catch (error) {
+        Utils.showStatus('Error rejecting expense', 'error');
+    }
+};
+
+// === SETTLEMENT CONFIRMATION ===
+
+window.confirmSettlement = async function(from, to, amount) {
+    const confirmedBy = prompt(`Confirming settlement:\n${from} pays ₹${amount.toFixed(2)} to ${to}\n\nEnter your name to confirm:`);
+    
+    if (!confirmedBy || confirmedBy.trim() === '') {
+        return;
+    }
+    
+    try {
+        const settlementId = `${from}-${to}`;
+        const result = await API.post('confirmSettlement', {
+            settlementId, from, to, amount, confirmedBy: confirmedBy.trim()
+        });
+        
+        if (result.success) {
+            Utils.showStatus('Settlement confirmed!', 'success');
+            await loadSettlements();
+        } else {
+            Utils.showStatus('Error: ' + (result.error || 'Failed to confirm settlement'), 'error');
+        }
+    } catch (error) {
+        Utils.showStatus('Error confirming settlement', 'error');
+    }
+};
+
+// === REGISTRATION MANAGEMENT ===
+
+window.approveRegistration = async function(name) {
+    try {
+        Utils.showStatus('Approving and generating user link...', 'info');
+        const result = await API.post('approveRegistration', { name: name });
+        
+        if (result.success) {
+            Utils.showStatus(`Registration approved for ${name}!`, 'success');
+            await loadPendingRegistrations();
+            await loadParticipants();
+        } else {
+            Utils.showStatus('Error: ' + (result.error || 'Failed to approve registration'), 'error');
+        }
+    } catch (error) {
+        Utils.showStatus('Error approving registration', 'error');
+    }
+};
+
+window.rejectRegistration = async function(name) {
+    if (!confirm(`Reject registration request from ${name}?`)) return;
+    try {
+        const result = await API.post('rejectRegistration', { name: name });
+        if (result.success) {
+            Utils.showStatus('Registration rejected', 'success');
+            await loadPendingRegistrations();
+        } else {
+            Utils.showStatus('Error: ' + (result.error || 'Failed to reject registration'), 'error');
+        }
+    } catch (error) {
+        Utils.showStatus('Error rejecting registration', 'error');
+    }
+};
+
+// === USER LINKS MANAGEMENT ===
+
+window.copyLinkToClipboard = function(link) {
+    navigator.clipboard.writeText(link).then(() => {
+        Utils.showStatus('Link copied to clipboard!', 'success');
+    });
+};
+
+// === DATA LOADING FUNCTIONS ===
+
+async function loadPendingRegistrations() {
+    try {
+        const data = await API.get('getPendingRegistrations');
+        if (data.success) {
+            const listDiv = document.getElementById('registrationList');
+            if (data.registrations.length === 0) {
+                listDiv.innerHTML = '<p>No pending registration requests. 🎉</p>';
+                return;
+            }
+            listDiv.innerHTML = data.registrations.map(reg => `
+                <div class="expense-item">
+                    <div class="expense-info">
+                        <div><strong>${Utils.escapeHtml(reg.name)}</strong></div>
+                        <div class="request-time">Requested: ${new Date(reg.requestedAt).toLocaleString()}</div>
+                    </div>
+                    <div class="expense-actions">
+                        <button class="btn btn-success btn-small" onclick="approveRegistration('${Utils.escapeHtml(reg.name)}')">✅ Approve</button>
+                        <button class="btn btn-danger btn-small" onclick="rejectRegistration('${Utils.escapeHtml(reg.name)}')">❌ Reject</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading registrations:', error);
+    }
+}
+
+async function loadUserLinks() {
+    try {
+        const data = await API.get('getUserLinks');
+        if (data.success) {
+            const listDiv = document.getElementById('userLinksList');
+            if (data.links.length === 0) {
+                listDiv.innerHTML = '<p>No user links stored yet.</p>';
+                return;
+            }
+            listDiv.innerHTML = data.links.map(link => `
+                <div class="expense-item">
+                    <div class="expense-info">
+                        <div>
+                            <strong>${Utils.escapeHtml(link.name)}</strong> 
+                            <span class="role-badge ${link.role}">${link.role.toUpperCase()}</span>
+                        </div>
+                        <div class="link-url">${Utils.escapeHtml(link.link)}</div>
+                        <div class="link-created">Created: ${new Date(link.createdAt).toLocaleString()}</div>
+                    </div>
+                    <div class="expense-actions">
+                        <button class="btn btn-primary btn-small" onclick="copyLinkToClipboard('${Utils.escapeHtml(link.link)}')">📋 Copy</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading user links:', error);
+    }
+}
+
+async function loadPendingExpenses() {
+    try {
+        const data = await API.get('getPendingExpenses');
+        
+        if (data.success) {
+            const listDiv = document.getElementById('pendingList');
+            
+            if (data.pending.length === 0) {
+                listDiv.innerHTML = '<p>No pending approvals. 🎉</p>';
+                return;
+            }
+            
+            listDiv.innerHTML = data.pending.map(expense => `
+                <div class="expense-item pending" id="pending-${expense.index}">
+                    <div class="expense-header">
+                        <input type="text" class="edit-field" id="desc-${expense.index}" value="${Utils.escapeHtml(expense.description)}" />
+                        <input type="number" class="edit-field edit-amount" id="amt-${expense.index}" value="${expense.amount}" step="0.01" />
+                    </div>
+                    <div class="expense-details">
+                        <span>📅 <input type="date" class="edit-field edit-date" id="date-${expense.index}" value="${expense.date}" /></span>
+                        <span>👤 Paid by: <input type="text" class="edit-field" id="paidby-${expense.index}" value="${Utils.escapeHtml(expense.paidBy)}" /></span>
+                        <span>👥 Split: <input type="text" class="edit-field" id="split-${expense.index}" value="${expense.splitBetween.map(Utils.escapeHtml).join(', ')}" /></span>
+                    </div>
+                    <div class="expense-actions">
+                        <button class="btn btn-primary btn-small" onclick="approveEditedExpense(${expense.index})">✓ Save & Approve</button>
+                        <button class="btn btn-danger btn-small" onclick="rejectExpense(${expense.index})">🗑️ Reject</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading pending expenses:', error);
+    }
+}
+
+async function loadParticipants() {
+    try {
+        const data = await API.get('getParticipants');
+        
+        if (data.success) {
+            AppState.participants = data.participants;
+            
+            // Update participant list
+            const listDiv = document.getElementById('participantList');
+            if (data.participants.length === 0) {
+                listDiv.innerHTML = '<p>No participants yet. Add some above.</p>';
+            } else {
+                listDiv.innerHTML = data.participants.map(p => `
+                    <div class="participant-item">
+                        <span>${Utils.escapeHtml(p)}</span>
+                        <button class="btn btn-danger btn-icon" onclick="removeParticipant('${Utils.escapeHtml(p)}')" title="Remove participant">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                        </button>
+                    </div>
+                `).join('');
+            }
+            
+            // Update paid by dropdown
+            const paidBySelect = document.getElementById('expensePaidBy');
+            paidBySelect.innerHTML = '<option value="">Select participant...</option>';
+            data.participants.forEach(p => {
+                paidBySelect.innerHTML += `<option value="${Utils.escapeHtml(p)}">${Utils.escapeHtml(p)}</option>`;
+            });
+            
+            // Update split checkboxes
+            const splitDiv = document.getElementById('splitCheckboxes');
+            splitDiv.innerHTML = '';
+            data.participants.forEach(p => {
+                splitDiv.innerHTML += `
+                    <label class="checkbox-label">
+                        <input type="checkbox" value="${Utils.escapeHtml(p)}">
+                        ${Utils.escapeHtml(p)}
+                    </label>
+                `;
+            });
+        }
+    } catch (error) {
+        console.error('Error loading participants:', error);
+    }
+}
+
+async function loadExpenses() {
+    try {
+        const data = await API.get('getExpenses');
+        
+        if (data.success) {
+            AppState.expenses = data.expenses;
+            
+            const listDiv = document.getElementById('expenseList');
+            
+            if (data.expenses.length === 0) {
+                listDiv.innerHTML = '<p>No expenses yet.</p>';
+                return;
+            }
+            
+            listDiv.innerHTML = data.expenses.map(expense => `
+                <div class="expense-item">
+                    <div class="expense-header">
+                        <span class="expense-description">${Utils.escapeHtml(expense.description)}</span>
+                        <span class="expense-amount">₹${expense.amount.toFixed(2)}</span>
+                    </div>
+                    <div class="expense-details">
+                        <span>📅 ${expense.date}</span>
+                        <span>👤 Paid by: ${Utils.escapeHtml(expense.paidBy)}</span>
+                        <span>👥 Split: ${expense.splitBetween.map(Utils.escapeHtml).join(', ')}</span>
+                        ${expense.status === 'pending' ? '<span class="status-badge pending">⏳ Pending</span>' : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading expenses:', error);
+    }
+}
+
+async function loadSettlements() {
+    try {
+        const [expensesData, confirmationsData] = await Promise.all([
+            API.get('getExpenses'),
+            API.get('getSettlementConfirmations')
+        ]);
+        
+        if (!expensesData.success) return;
+        
+        const confirmations = confirmationsData.success ? confirmationsData.confirmations : {};
+        
+        // Calculate settlements
+        const balances = {};
+        
+        expensesData.expenses.forEach(expense => {
+            const share = expense.amount / expense.splitBetween.length;
+            
+            expense.splitBetween.forEach(person => {
+                if (!balances[person]) balances[person] = 0;
+                balances[person] -= share;
+            });
+            
+            if (!balances[expense.paidBy]) balances[expense.paidBy] = 0;
+            balances[expense.paidBy] += expense.amount;
+        });
+        
+        // Optimized settlement calculation - minimizes transactions
+        const settlements = [];
+        const creditors = [];
+        const debtors = [];
+        
+        Object.entries(balances).forEach(([person, balance]) => {
+            if (Math.abs(balance) < 0.01) return;
+            
+            if (balance > 0) {
+                creditors.push({ person, amount: balance });
+            } else {
+                debtors.push({ person, amount: -balance });
+            }
+        });
+        
+        // Sort by amount descending for optimal matching
+        creditors.sort((a, b) => b.amount - a.amount);
+        debtors.sort((a, b) => b.amount - a.amount);
+        
+        // Greedy algorithm: match largest debtor with largest creditor
+        while (creditors.length > 0 && debtors.length > 0) {
+            const creditor = creditors[0];
+            const debtor = debtors[0];
+            const amount = Math.min(creditor.amount, debtor.amount);
+            
+            settlements.push({
+                from: debtor.person,
+                to: creditor.person,
+                amount: amount
+            });
+            
+            creditor.amount -= amount;
+            debtor.amount -= amount;
+            
+            // Remove settled parties
+            if (creditor.amount < 0.01) creditors.shift();
+            if (debtor.amount < 0.01) debtors.shift();
+        }
+        
+        // Display settlements
+        const listDiv = document.getElementById('settlementList');
+        
+        if (settlements.length === 0) {
+            listDiv.innerHTML = '<p>All settled up! 🎉</p>';
+        } else {
+            listDiv.innerHTML = settlements.map(s => {
+                const settlementId = `${s.from}-${s.to}`;
+                const isConfirmed = confirmations[settlementId];
+                
+                if (isConfirmed) return '';
+                
+                return `
+                    <div class="settlement-item">
+                        <div class="settlement-info">
+                            <span class="settlement-debtor">${Utils.escapeHtml(s.from)}</span>
+                            <span class="settlement-arrow">→</span>
+                            <span class="settlement-creditor">${Utils.escapeHtml(s.to)}</span>
+                            <span class="settlement-amount">₹${s.amount.toFixed(2)}</span>
+                        </div>
+                        <button class="btn btn-small" onclick="confirmSettlement('${Utils.escapeHtml(s.from)}', '${Utils.escapeHtml(s.to)}', ${s.amount})">
+                            ✓ Confirm
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Display confirmed settlements
+        const confirmedDiv = document.getElementById('confirmedSettlements');
+        const confirmedList = Object.entries(confirmations);
+        
+        if (confirmedList.length === 0) {
+            confirmedDiv.innerHTML = '<p>No confirmed settlements yet.</p>';
+        } else {
+            confirmedDiv.innerHTML = confirmedList.map(([id, conf]) => `
+                <div class="settlement-item confirmed">
+                    <div class="settlement-info">
+                        <span>${Utils.escapeHtml(conf.from)} → ${Utils.escapeHtml(conf.to)}: ₹${conf.amount.toFixed(2)}</span>
+                    </div>
+                    <div class="settlement-confirmed-by">
+                        ✓ Confirmed by ${Utils.escapeHtml(conf.confirmedBy)}
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading settlements:', error);
+    }
+}
+
+// === DECRYPTION ===
+
+async function decryptData(encryptedStr) {
+    try {
+        const base64 = encryptedStr
+            .replace(/-/g, '+')
+            .replace(/_/g, '/')
+            .padEnd(encryptedStr.length + (4 - encryptedStr.length % 4) % 4, '=');
+        
+        const combined = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+        const salt = combined.slice(0, 16);
+        const iv = combined.slice(16, 28);
+        const encryptedData = combined.slice(28);
+        
+        const encoder = new TextEncoder();
+        const passphrase = 'Sabarimala2026ExpenseTracker';
+        const passphraseBuffer = encoder.encode(passphrase);
+        const keyMaterial = await crypto.subtle.importKey(
+            'raw',
+            passphraseBuffer,
+            'PBKDF2',
+            false,
+            ['deriveBits', 'deriveKey']
+        );
+        
+        const key = await crypto.subtle.deriveKey(
+            {
+                name: 'PBKDF2',
+                salt: salt,
+                iterations: 100000,
+                hash: 'SHA-256'
+            },
+            keyMaterial,
+            { name: 'AES-GCM', length: 256 },
+            false,
+            ['decrypt']
+        );
+        
+        const decryptedBuffer = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv: iv },
+            key,
+            encryptedData
+        );
+        
+        // Decompress data using pako
+        const decompressed = pako.inflate(new Uint8Array(decryptedBuffer), { to: 'string' });
+        return JSON.parse(decompressed);
+    } catch (error) {
+        console.error('Decryption failed:', error);
+        return null;
+    }
+}
+
+// === INITIALIZATION ===
+
+(async function init() {
+    // Parse URL to get encrypted token
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    
+    if (!token) {
+        document.getElementById('statusMessage').innerHTML = 
+            '<div class="status-message status-error">Invalid admin link. Please use the link generated during setup.</div>';
+        return;
+    }
+    
+    // Decrypt token
+    const decryptedData = await decryptData(token);
+    if (!decryptedData || !decryptedData.key || !decryptedData.apiUrl) {
+        document.getElementById('statusMessage').innerHTML = 
+            '<div class="status-message status-error">Invalid or corrupted admin link. Please generate a new one.</div>';
+        return;
+    }
+    
+    CONFIG.API_URL = decryptedData.apiUrl;
+    CONFIG.ACCESS_KEY = decryptedData.key;
+    CONFIG.IS_ADMIN = true;
+    document.getElementById('groupName').textContent = decryptedData.name;
+    
+    // Store admin link in sheet for backup (first time or always)
+    try {
+        const adminName = document.getElementById('groupName').textContent + ' Admin';
+        const currentLink = window.location.href;
+        await API.post('storeUserLink', {
+            name: adminName,
+            token: token,
+            link: currentLink,
+            role: 'admin'
+        });
+    } catch (error) {
+        console.log('Note: Could not store admin link (may already exist)');
+    }
+    
+    // Set today's date
+    document.getElementById('expenseDate').valueAsDate = new Date();
+    
+    // Load data
+    await loadPendingExpenses();
+    await loadPendingRegistrations();
+    await loadParticipants();
+    await loadUserLinks();
+    await loadExpenses();
+    await loadSettlements();
+})();

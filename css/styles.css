@@ -843,3 +843,44 @@ textarea:focus {
 .btn-link:hover {
     color: #5568d3;
 }
+
+/* ==================== ADMIN SPECIFIC STYLES ==================== */
+
+.btn-margin-top {
+    margin-top: 10px;
+}
+
+.expense-info .request-time,
+.expense-info .link-url,
+.expense-info .link-created {
+    color: #666;
+    font-size: 0.9em;
+}
+
+.expense-info .link-url {
+    font-size: 0.85em;
+    word-break: break-all;
+    margin-top: 5px;
+}
+
+.expense-info .link-created {
+    color: #999;
+    font-size: 0.8em;
+    margin-top: 3px;
+}
+
+.role-badge {
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    margin-left: 8px;
+}
+
+.role-badge.admin {
+    background: #ff6b6b;
+}
+
+.role-badge.user {
+    background: #4CAF50;
+}
