@@ -46,6 +46,10 @@ function doGet(e) {
       return getPendingExpenses(sheet);
     } else if (action === 'getSettlementConfirmations') {
       return getSettlementConfirmations(sheet);
+    } else if (action === 'getMyExpenses') {
+      // Get expenses for specific user
+      const userName = e.parameter.userName;
+      return getMyExpenses(sheet, userName);
     } else if (action === 'getPendingRegistrations') {
       // Admin only
       if (accessKey !== ADMIN_KEY) {
@@ -142,16 +146,9 @@ function doPost(e) {
     if (data.action === 'registerUser') {
       return registerUser(sheet, data);
     } else if (data.action === 'addExpense') {
-      // Admin only
-      if (!isAdmin) {
-        return ContentService.createTextOutput(JSON.stringify({
-          success: false,
-          error: 'Admin access required'
-        })).setMimeType(ContentService.MimeType.JSON);
-      }
-      return storeUserLink(sheet, data);
-    } else if (data.action === 'addExpense') {
       return addExpense(sheet, data.expense, isAdmin);
+    } else if (data.action === 'updateExpense') {
+      return updateExpense(sheet, data, isAdmin);
     } else if (data.action === 'confirmSettlement') {
       return confirmSettlement(sheet, data);
     }
@@ -288,6 +285,73 @@ function addExpense(sheet, expense, isAdmin) {
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
     status: isAdmin ? 'approved' : 'pending'
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function getMyExpenses(sheet, userName) {
+  const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
+  const data = expensesSheet.getDataRange().getValues();
+  
+  const myExpenses = [];
+  
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] && data[i][3] === userName) {
+      myExpenses.push({
+        index: i - 1,
+        date: data[i][0],
+        description: data[i][1],
+        amount: data[i][2],
+        paidBy: data[i][3],
+        splitBetween: data[i][4] ? data[i][4].split(',') : [],
+        status: data[i][5] || 'approved'
+      });
+    }
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    expenses: myExpenses
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function updateExpense(sheet, data, isAdmin) {
+  const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
+  const row = data.index + 2; // +1 for header, +1 for 0-based index
+  
+  // Get current expense data to check ownership
+  const currentData = expensesSheet.getRange(row, 1, 1, 6).getValues()[0];
+  const currentStatus = currentData[5] || 'approved';
+  
+  // Users can only edit their own pending expenses
+  if (!isAdmin) {
+    if (currentData[3] !== data.userName) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'Can only edit your own expenses'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (currentStatus !== 'pending') {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'Can only edit pending expenses'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  
+  // Update the expense
+  expensesSheet.getRange(row, 1).setValue(data.expense.date);
+  expensesSheet.getRange(row, 2).setValue(data.expense.description);
+  expensesSheet.getRange(row, 3).setValue(data.expense.amount);
+  expensesSheet.getRange(row, 4).setValue(data.expense.paidBy);
+  expensesSheet.getRange(row, 5).setValue(data.expense.splitBetween.join(','));
+  
+  // If user edited, reset to pending. If admin edited, keep current status
+  if (!isAdmin) {
+    expensesSheet.getRange(row, 6).setValue('pending');
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true
   })).setMimeType(ContentService.MimeType.JSON);
 }
 

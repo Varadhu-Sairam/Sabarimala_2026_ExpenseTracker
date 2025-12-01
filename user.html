@@ -38,6 +38,8 @@
         <div id="mainContent" style="display:none;">
             <div class="tabs">
                 <button class="tab active" onclick="switchTab('expenses')">💰 Submit Expense</button>
+                <button class="tab" onclick="switchTab('myexpenses')">📊 My Expenses</button>
+                <button class="tab" onclick="switchTab('balance')">💵 My Balance</button>
                 <button class="tab" onclick="switchTab('settlements')">🧮 Settlements</button>
             </div>
 
@@ -48,40 +50,61 @@
                 Note: Your expense will be pending approval by the admin before being added to the calculations.
             </p>
             
-            <div class="form-group">
-                <label>Date:</label>
-                <input type="date" id="expenseDate">
-            </div>
-
-            <div class="form-group">
-                <label>Description:</label>
-                <input type="text" id="expenseDescription" placeholder="e.g., Dinner at restaurant">
-            </div>
-
-            <div class="form-group">
-                <label>Amount (₹):</label>
-                <input type="number" id="expenseAmount" placeholder="0.00" step="0.01">
-            </div>
-
-            <div class="form-group">
-                <label>Paid By:</label>
-                <select id="expensePaidBy">
-                    <option value="">Select participant...</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Split Between:</label>
-                <div id="splitCheckboxes" class="split-checkboxes">
-                    <!-- Checkboxes will be loaded here -->
+            <div id="expenseForm">
+                <div class="form-group">
+                    <label>Date:</label>
+                    <input type="date" id="expenseDate">
                 </div>
-            </div>
 
-            <button class="btn btn-primary" onclick="submitExpense()">✅ Submit Expense</button>
+                <div class="form-group">
+                    <label>Description:</label>
+                    <input type="text" id="expenseDescription" placeholder="e.g., Dinner at restaurant">
+                </div>
+
+                <div class="form-group">
+                    <label>Amount (₹):</label>
+                    <input type="number" id="expenseAmount" placeholder="0.00" step="0.01">
+                </div>
+
+                <div class="form-group">
+                    <label>Paid By:</label>
+                    <select id="expensePaidBy">
+                        <option value="">Select participant...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Split Between:</label>
+                    <div id="splitCheckboxes" class="split-checkboxes">
+                        <!-- Checkboxes will be loaded here -->
+                    </div>
+                </div>
+
+                <button id="submitBtn" class="btn btn-primary" onclick="submitExpense()">✅ Submit Expense</button>
+            </div>
 
             <h2 style="margin-top: 40px;">Approved Expenses</h2>
             <div class="expense-list" id="expenseList">
                 <!-- Expenses will be loaded here -->
+            </div>
+        </div>
+
+        <!-- My Expenses Tab -->
+        <div id="myexpenses" class="tab-content">
+            <h2>My Submitted Expenses</h2>
+            <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
+                View all your submitted expenses and their approval status. You can edit pending expenses.
+            </p>
+            <div id="myExpensesList">
+                <!-- User's expenses will be loaded here -->
+            </div>
+        </div>
+
+        <!-- My Balance Tab -->
+        <div id="balance" class="tab-content">
+            <h2>My Balance Summary</h2>
+            <div id="balanceSummary">
+                <!-- Balance summary will be shown here -->
             </div>
         </div>
 
@@ -159,13 +182,26 @@
                 return;
             }
             
+            const form = document.getElementById('expenseForm');
+            const isEdit = form && form.dataset.editIndex;
+            
             try {
-                const result = await API.post('addExpense', {
-                    expense: { date, description, amount, paidBy, splitBetween }
-                });
+                let result;
+                if (isEdit) {
+                    // Update existing expense
+                    result = await API.post('updateExpense', {
+                        index: parseInt(form.dataset.editIndex),
+                        expense: { date, description, amount, paidBy, splitBetween }
+                    });
+                } else {
+                    // Add new expense
+                    result = await API.post('addExpense', {
+                        expense: { date, description, amount, paidBy, splitBetween }
+                    });
+                }
                 
                 if (result.success) {
-                    Utils.showStatus('Expense submitted! Waiting for admin approval.', 'success');
+                    Utils.showStatus(isEdit ? 'Expense updated! Waiting for admin approval.' : 'Expense submitted! Waiting for admin approval.', 'success');
                     
                     // Clear form
                     document.getElementById('expenseDescription').value = '';
@@ -173,7 +209,14 @@
                     document.getElementById('expensePaidBy').value = '';
                     document.querySelectorAll('#splitCheckboxes input').forEach(cb => cb.checked = false);
                     
+                    // Reset edit mode
+                    if (form) {
+                        delete form.dataset.editIndex;
+                        document.getElementById('submitBtn').textContent = '✅ Submit Expense';
+                    }
+                    
                     await loadExpenses();
+                    await loadMyExpenses();
                 } else {
                     Utils.showStatus('Error: ' + (result.error || 'Failed to submit expense'), 'error');
                 }
@@ -267,6 +310,146 @@
                 }
             } catch (error) {
                 console.error('Error loading expenses:', error);
+            }
+        }
+
+        async function loadMyExpenses() {
+            try {
+                const userName = AppState.userName || prompt('Enter your name:');
+                if (!userName) return;
+                
+                AppState.userName = userName;
+                const data = await API.get('getMyExpenses', { userName });
+                
+                if (data.success) {
+                    const listDiv = document.getElementById('myExpensesList');
+                    
+                    if (data.expenses.length === 0) {
+                        listDiv.innerHTML = '<p>You haven\'t added any expenses yet.</p>';
+                        return;
+                    }
+                    
+                    listDiv.innerHTML = data.expenses.map(expense => {
+                        const statusBadge = expense.status === 'pending' 
+                            ? '<span class="status-badge status-pending">Pending</span>'
+                            : expense.status === 'rejected'
+                            ? '<span class="status-badge status-rejected">Rejected</span>'
+                            : '<span class="status-badge status-approved">Approved</span>';
+                        
+                        const editBtn = expense.status === 'pending' 
+                            ? `<button class="btn-icon" onclick="editExpense(${expense.index})" title="Edit">✏️</button>`
+                            : '';
+                        
+                        return `
+                            <div class="expense-item">
+                                <div class="expense-header">
+                                    <span class="expense-description">${Utils.escapeHtml(expense.description)}</span>
+                                    <span class="expense-amount">₹${expense.amount.toFixed(2)}</span>
+                                </div>
+                                <div class="expense-details">
+                                    <span>📅 ${expense.date}</span>
+                                    <span>👥 Split: ${expense.splitBetween.map(Utils.escapeHtml).join(', ')}</span>
+                                    ${statusBadge}
+                                    ${editBtn}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            } catch (error) {
+                console.error('Error loading my expenses:', error);
+            }
+        }
+
+        async function loadMyBalance() {
+            try {
+                const data = await API.get('getExpenses');
+                
+                if (data.success) {
+                    const userName = AppState.userName;
+                    let myBalance = 0;
+                    let totalPaid = 0;
+                    let totalOwed = 0;
+                    
+                    data.expenses.forEach(expense => {
+                        const share = expense.amount / expense.splitBetween.length;
+                        
+                        // Amount I paid
+                        if (expense.paidBy === userName) {
+                            totalPaid += expense.amount;
+                            myBalance += expense.amount;
+                        }
+                        
+                        // Amount I owe (my share)
+                        if (expense.splitBetween.includes(userName)) {
+                            totalOwed += share;
+                            myBalance -= share;
+                        }
+                    });
+                    
+                    const balanceDiv = document.getElementById('balanceSummary');
+                    const balanceClass = myBalance >= 0 ? 'balance-positive' : 'balance-negative';
+                    const balanceLabel = myBalance >= 0 ? 'You are owed' : 'You owe';
+                    
+                    balanceDiv.innerHTML = `
+                        <div class="balance-card">
+                            <h3>Your Balance</h3>
+                            <div class="balance-amount ${balanceClass}">
+                                ${balanceLabel}: ₹${Math.abs(myBalance).toFixed(2)}
+                            </div>
+                            <div class="balance-details">
+                                <p>💰 Total Paid: ₹${totalPaid.toFixed(2)}</p>
+                                <p>📊 Your Share: ₹${totalOwed.toFixed(2)}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading balance:', error);
+            }
+        }
+
+        async function editExpense(index) {
+            try {
+                // Reload my expenses to get latest data
+                const userName = AppState.userName;
+                const data = await API.get('getMyExpenses', { userName });
+                
+                if (!data.success) {
+                    alert('Error loading expense data');
+                    return;
+                }
+                
+                const expense = data.expenses.find(e => e.index === index);
+                if (!expense) {
+                    alert('Expense not found');
+                    return;
+                }
+                
+                // Pre-fill the form
+                document.getElementById('expenseDate').value = expense.date;
+                document.getElementById('expenseDescription').value = expense.description;
+                document.getElementById('expenseAmount').value = expense.amount;
+                document.getElementById('expensePaidBy').value = expense.paidBy;
+                
+                // Check split participants
+                const checkboxes = document.querySelectorAll('#splitCheckboxes input[type="checkbox"]');
+                checkboxes.forEach(cb => {
+                    cb.checked = expense.splitBetween.includes(cb.value);
+                });
+                
+                // Store the index for update
+                document.getElementById('expenseForm').dataset.editIndex = index;
+                document.getElementById('submitBtn').textContent = '✏️ Update Expense';
+                
+                // Switch to submit tab
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                document.querySelector('.tab[onclick*="expenses"]').classList.add('active');
+                document.getElementById('expenses').classList.add('active');
+            } catch (error) {
+                console.error('Error editing expense:', error);
+                alert('Error loading expense for editing');
             }
         }
 
@@ -480,6 +663,8 @@
                     await loadParticipants();
                     await loadExpenses();
                     await loadSettlements();
+                    await loadMyExpenses();
+                    await loadMyBalance();
                 }
             }
         })();

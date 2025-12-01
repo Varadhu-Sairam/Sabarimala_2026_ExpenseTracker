@@ -9,12 +9,18 @@ export const API = {
     /**
      * Make GET request to backend
      */
-    async get(action) {
+    async get(action, params = {}) {
         if (!CONFIG.API_URL || !CONFIG.ACCESS_KEY) {
             throw new Error('API not configured');
         }
         
-        const url = `${CONFIG.API_URL}?action=${action}&key=${encodeURIComponent(CONFIG.ACCESS_KEY)}`;
+        const queryParams = new URLSearchParams({
+            action,
+            key: CONFIG.ACCESS_KEY,
+            ...params
+        });
+        
+        const url = `${CONFIG.API_URL}?${queryParams}`;
         
         const response = await fetch(url);
         return await response.json();

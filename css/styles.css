@@ -677,3 +677,121 @@ textarea:focus {
         grid-template-columns: 1fr;
     }
 }
+
+/* ==================== STATUS BADGES ==================== */
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-pending {
+    background: #FFF3CD;
+    color: #856404;
+}
+
+.status-approved {
+    background: #D4EDDA;
+    color: #155724;
+}
+
+.status-rejected {
+    background: #F8D7DA;
+    color: #721C24;
+}
+
+/* ==================== BALANCE DISPLAY ==================== */
+
+.balance-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 15px;
+    text-align: center;
+    margin: 20px 0;
+}
+
+.balance-card h3 {
+    font-size: 1.5em;
+    margin-bottom: 15px;
+    opacity: 0.9;
+}
+
+.balance-amount {
+    font-size: 2.5em;
+    font-weight: bold;
+    margin: 20px 0;
+}
+
+.balance-positive {
+    color: #4CAF50;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
+.balance-negative {
+    color: #FF6B6B;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
+.balance-details {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.3);
+}
+
+.balance-details p {
+    font-size: 1.1em;
+    margin: 8px 0;
+    opacity: 0.95;
+}
+
+/* ==================== INLINE EDIT FIELDS ==================== */
+
+.edit-field {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 14px;
+    font-family: inherit;
+    width: 100%;
+    max-width: 300px;
+}
+
+.edit-amount {
+    max-width: 100px;
+    text-align: right;
+}
+
+.edit-date {
+    max-width: 150px;
+}
+
+.edit-field:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.expense-item.pending .expense-header {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.expense-item.pending .expense-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.expense-item.pending .expense-details span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}

@@ -238,6 +238,47 @@
             }
         };
 
+        window.approveEditedExpense = async function(index) {
+            try {
+                // Get edited values
+                const date = document.getElementById(`date-${index}`).value;
+                const description = document.getElementById(`desc-${index}`).value;
+                const amount = parseFloat(document.getElementById(`amt-${index}`).value);
+                const paidBy = document.getElementById(`paidby-${index}`).value;
+                const splitString = document.getElementById(`split-${index}`).value;
+                const splitBetween = splitString.split(',').map(s => s.trim()).filter(s => s);
+                
+                if (!date || !description || !amount || !paidBy || splitBetween.length === 0) {
+                    Utils.showStatus('Please fill all fields', 'error');
+                    return;
+                }
+                
+                // Update expense first
+                const updateResult = await API.post('updateExpense', {
+                    index,
+                    expense: { date, description, amount, paidBy, splitBetween }
+                });
+                
+                if (!updateResult.success) {
+                    Utils.showStatus('Error: ' + (updateResult.error || 'Failed to update expense'), 'error');
+                    return;
+                }
+                
+                // Then approve
+                const approveResult = await API.post('approveExpense', { index });
+                
+                if (approveResult.success) {
+                    Utils.showStatus('Expense updated and approved!', 'success');
+                    await loadPendingExpenses();
+                    await loadExpenses();
+                } else {
+                    Utils.showStatus('Error: ' + (approveResult.error || 'Failed to approve expense'), 'error');
+                }
+            } catch (error) {
+                Utils.showStatus('Error processing expense', 'error');
+            }
+        };
+
         window.rejectExpense = async function(index) {
             if (!confirm('Reject this expense?')) return;
             
@@ -384,19 +425,19 @@
                     }
                     
                     listDiv.innerHTML = data.pending.map(expense => `
-                        <div class="expense-item pending">
+                        <div class="expense-item pending" id="pending-${expense.index}">
                             <div class="expense-header">
-                                <span class="expense-description">${Utils.escapeHtml(expense.description)}</span>
-                                <span class="expense-amount">₹${expense.amount.toFixed(2)}</span>
+                                <input type="text" class="edit-field" id="desc-${expense.index}" value="${Utils.escapeHtml(expense.description)}" />
+                                <input type="number" class="edit-field edit-amount" id="amt-${expense.index}" value="${expense.amount}" step="0.01" />
                             </div>
                             <div class="expense-details">
-                                <span>📅 ${expense.date}</span>
-                                <span>👤 Paid by: ${Utils.escapeHtml(expense.paidBy)}</span>
-                                <span>👥 Split: ${expense.splitBetween.map(Utils.escapeHtml).join(', ')}</span>
+                                <span>📅 <input type="date" class="edit-field edit-date" id="date-${expense.index}" value="${expense.date}" /></span>
+                                <span>👤 Paid by: <input type="text" class="edit-field" id="paidby-${expense.index}" value="${Utils.escapeHtml(expense.paidBy)}" /></span>
+                                <span>👥 Split: <input type="text" class="edit-field" id="split-${expense.index}" value="${expense.splitBetween.map(Utils.escapeHtml).join(', ')}" /></span>
                             </div>
                             <div class="expense-actions">
-                                <button class="btn btn-primary btn-small" onclick="approveExpense(${expense.index})">✓ Approve</button>
-                                <button class="btn btn-danger btn-small" onclick="rejectExpense(${expense.index})">✗ Reject</button>
+                                <button class="btn btn-primary btn-small" onclick="approveEditedExpense(${expense.index})">✓ Save & Approve</button>
+                                <button class="btn btn-danger btn-small" onclick="rejectExpense(${expense.index})">🗑️ Reject</button>
                             </div>
                         </div>
                     `).join('');
