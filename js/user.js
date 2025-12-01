@@ -44,8 +44,14 @@ window.switchTab = function(tabName) {
     document.getElementById(tabName).classList.add('active');
     
     // Load data when switching to specific tabs
-    if (tabName === 'summary') {
+    if (tabName === 'myexpenses') {
+        loadMyExpenses();
+    } else if (tabName === 'balance') {
+        loadMyBalance();
+    } else if (tabName === 'summary') {
         loadSummary();
+    } else if (tabName === 'settlements') {
+        loadSettlements();
     }
 };
 
@@ -486,6 +492,74 @@ async function loadSettlements() {
         }
     } catch (error) {
         console.error('Error loading settlements:', error);
+    }
+}
+
+async function loadSummary() {
+    try {
+        const data = await API.get('getExpenses');
+        
+        if (!data.success) return;
+        
+        // Filter only approved expenses
+        const approvedExpenses = data.expenses.filter(e => e.status === 'Approved');
+        
+        // Calculate total group expense
+        const totalGroupExpense = approvedExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+        document.getElementById('totalGroupExpense').textContent = `₹${totalGroupExpense.toFixed(2)}`;
+        
+        // Calculate individual expenses (amount paid by each person)
+        const individualExpenses = {};
+        approvedExpenses.forEach(expense => {
+            if (!individualExpenses[expense.paidBy]) {
+                individualExpenses[expense.paidBy] = 0;
+            }
+            individualExpenses[expense.paidBy] += expense.amount;
+        });
+        
+        // Calculate individual shares (amount owed by each person)
+        const individualShares = {};
+        approvedExpenses.forEach(expense => {
+            const share = expense.amount / expense.splitBetween.length;
+            expense.splitBetween.forEach(person => {
+                if (!individualShares[person]) {
+                    individualShares[person] = 0;
+                }
+                individualShares[person] += share;
+            });
+        });
+        
+        // Display individual expenses
+        const expensesListDiv = document.getElementById('individualExpensesList');
+        const expensesEntries = Object.entries(individualExpenses).sort((a, b) => b[1] - a[1]);
+        
+        if (expensesEntries.length === 0) {
+            expensesListDiv.innerHTML = '<p>No expenses recorded yet.</p>';
+        } else {
+            expensesListDiv.innerHTML = expensesEntries.map(([person, amount]) => `
+                <div class="summary-person-item">
+                    <span class="summary-person-name">${Utils.escapeHtml(person)}</span>
+                    <span class="summary-person-amount">₹${amount.toFixed(2)}</span>
+                </div>
+            `).join('');
+        }
+        
+        // Display individual shares
+        const sharesListDiv = document.getElementById('individualSharesList');
+        const sharesEntries = Object.entries(individualShares).sort((a, b) => b[1] - a[1]);
+        
+        if (sharesEntries.length === 0) {
+            sharesListDiv.innerHTML = '<p>No shares calculated yet.</p>';
+        } else {
+            sharesListDiv.innerHTML = sharesEntries.map(([person, amount]) => `
+                <div class="summary-person-item">
+                    <span class="summary-person-name">${Utils.escapeHtml(person)}</span>
+                    <span class="summary-person-amount">₹${amount.toFixed(2)}</span>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading summary:', error);
     }
 }
 

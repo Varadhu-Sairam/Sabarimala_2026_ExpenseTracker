@@ -16,8 +16,20 @@ window.switchTab = function(tabName) {
     document.getElementById(tabName).classList.add('active');
     
     // Load data when switching to specific tabs
-    if (tabName === 'summary') {
+    if (tabName === 'pending') {
+        loadPendingExpenses();
+    } else if (tabName === 'registrations') {
+        loadPendingRegistrations();
+    } else if (tabName === 'summary') {
         loadSummary();
+    } else if (tabName === 'participants') {
+        loadParticipants();
+    } else if (tabName === 'links') {
+        loadUserLinks();
+    } else if (tabName === 'expenses') {
+        loadExpenses();
+    } else if (tabName === 'settlements') {
+        loadSettlements();
     }
 };
 
@@ -338,6 +350,22 @@ async function loadPendingExpenses() {
     }
 }
 
+// === SELECT ALL / DESELECT ALL ===
+
+window.selectAllParticipants = function() {
+    document.querySelectorAll('#splitCheckboxes input[type="checkbox"]').forEach(cb => {
+        cb.checked = true;
+    });
+};
+
+window.deselectAllParticipants = function() {
+    document.querySelectorAll('#splitCheckboxes input[type="checkbox"]').forEach(cb => {
+        cb.checked = false;
+    });
+};
+
+// === DATA LOADING FUNCTIONS ===
+
 async function loadParticipants() {
     try {
         const data = await API.get('getParticipants');
@@ -372,9 +400,14 @@ async function loadParticipants() {
                 paidBySelect.innerHTML += `<option value="${Utils.escapeHtml(p)}">${Utils.escapeHtml(p)}</option>`;
             });
             
-            // Update split checkboxes
+            // Update split checkboxes with select all/deselect all
             const splitDiv = document.getElementById('splitCheckboxes');
-            splitDiv.innerHTML = '';
+            splitDiv.innerHTML = `
+                <div class="checkbox-controls">
+                    <button type="button" class="btn-link" onclick="selectAllParticipants()">Select All</button>
+                    <button type="button" class="btn-link" onclick="deselectAllParticipants()">Deselect All</button>
+                </div>
+            `;
             data.participants.forEach(p => {
                 splitDiv.innerHTML += `
                     <label class="checkbox-label">
@@ -634,16 +667,37 @@ async function decryptData(encryptedStr) {
     
     // Store admin link in sheet for backup (first time or always)
     try {
-        const adminName = document.getElementById('groupName').textContent + ' Admin';
+        const adminName = decryptedData.name + ' Admin';
         const currentLink = window.location.href;
-        await API.post('storeUserLink', {
+        
+        console.log('Attempting to store admin link...');
+        console.log('API URL:', CONFIG.API_URL);
+        console.log('Admin Name:', adminName);
+        console.log('Has Access Key:', !!CONFIG.ACCESS_KEY);
+        
+        const result = await API.post('storeUserLink', {
             name: adminName,
             token: token,
             link: currentLink,
             role: 'admin'
         });
+        
+        console.log('Store admin link result:', result);
+        
+        if (result.success) {
+            console.log('✅ Admin link stored successfully:', result.message);
+        } else {
+            console.error('❌ Failed to store admin link:', result.error);
+            if (result.error === 'Admin access required') {
+                console.error('⚠️ IMPORTANT: The ADMIN_KEY in your Google Apps Script does not match the key in your admin link.');
+                console.error('Please ensure you:');
+                console.error('1. Copied the complete script from setup.html (Step 3)');
+                console.error('2. Pasted it into Google Apps Script');
+                console.error('3. Deployed/Re-deployed the script');
+            }
+        }
     } catch (error) {
-        console.log('Note: Could not store admin link (may already exist)');
+        console.error('❌ Error storing admin link:', error);
     }
     
     // Set today's date
