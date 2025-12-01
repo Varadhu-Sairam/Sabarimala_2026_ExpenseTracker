@@ -184,13 +184,13 @@
         
         // Display Apps Script code
         function displayScriptCode() {
-            fetch('google-script-simple.gs')
+            fetch('google-script.gs')
                 .then(r => r.text())
                 .then(code => {
                     document.getElementById('scriptCode').textContent = code;
                 })
                 .catch(() => {
-                    document.getElementById('scriptCode').textContent = '// Error loading script. Please copy from google-script-simple.gs file';
+                    document.getElementById('scriptCode').textContent = '// Error loading script. Please copy from google-script.gs file';
                 });
         }
         

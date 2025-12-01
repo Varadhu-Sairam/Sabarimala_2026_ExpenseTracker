@@ -3,7 +3,7 @@
  * Communicates with Google Apps Script backend using access keys
  */
 
-import { CONFIG } from './config-simple.js';
+import { CONFIG } from './config.js';
 
 export const API = {
     /**
