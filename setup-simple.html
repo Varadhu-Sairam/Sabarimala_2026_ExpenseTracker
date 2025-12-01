@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup - Sabarimala 2026</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .setup-step {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4CAF50;
+        }
+        .setup-step h3 {
+            margin-top: 0;
+            color: #2E7D32;
+        }
+        .code-block {
+            background: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .key-display {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: monospace;
+            word-break: break-all;
+        }
+        .link-display {
+            background: #e3f2fd;
+            border: 2px solid #2196F3;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            word-break: break-all;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🙏 Sabarimala 2026</h1>
+            <p>Setup - Simplified Access</p>
+        </div>
+
+        <div id="statusMessage"></div>
+
+        <!-- Step 1: Group Info -->
+        <div class="setup-step">
+            <h3>Step 1: Group Information</h3>
+            <div class="form-group">
+                <label>Group Name:</label>
+                <input type="text" id="groupName" placeholder="e.g., Sabarimala 2026 Trip" value="Sabarimala 2026">
+            </div>
+            <div class="form-group">
+                <label>Google Sheet URL:</label>
+                <input type="text" id="sheetUrl" placeholder="https://docs.google.com/spreadsheets/d/...">
+                <p style="font-size: 13px; color: #666; margin-top: 5px;">
+                    Create a new Google Sheet first, then paste its URL here.
+                </p>
+            </div>
+        </div>
+
+        <!-- Step 2: Deploy Apps Script -->
+        <div class="setup-step">
+            <h3>Step 2: Deploy Google Apps Script</h3>
+            <p>1. Open your Google Sheet and go to <strong>Extensions → Apps Script</strong></p>
+            <p>2. Delete any existing code and paste this:</p>
+            
+            <button class="btn btn-primary" onclick="copyScriptCode()" style="margin: 10px 0;">📋 Copy Apps Script Code</button>
+            
+            <div class="code-block" id="scriptCode" style="max-height: 300px; overflow-y: auto;">
+                <!-- Script will be inserted here -->
+            </div>
+            
+            <p>3. Click <strong>Deploy → New deployment</strong></p>
+            <p>4. Select type: <strong>Web app</strong></p>
+            <p>5. Set:</p>
+            <ul>
+                <li><strong>Execute as:</strong> Me</li>
+                <li><strong>Who has access:</strong> Anyone</li>
+            </ul>
+            <p>6. Click <strong>Deploy</strong> and copy the Web App URL</p>
+            
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Web App URL:</label>
+                <input type="text" id="webAppUrl" placeholder="https://script.google.com/macros/s/...">
+            </div>
+        </div>
+
+        <!-- Step 3: Generate Access Keys -->
+        <div class="setup-step">
+            <h3>Step 3: Generate Access Keys</h3>
+            <p>Click the button below to generate secure random keys:</p>
+            <button class="btn btn-primary" onclick="generateKeys()">🔐 Generate Keys</button>
+            
+            <div id="keysDisplay" style="display: none; margin-top: 20px;">
+                <div class="warning">
+                    <strong>⚠️ Important:</strong> Copy these keys now! You'll need to paste them into your Apps Script.
+                </div>
+                
+                <div style="margin: 15px 0;">
+                    <strong>Admin Key:</strong>
+                    <div class="key-display" id="adminKey"></div>
+                    <button class="btn btn-small" onclick="copyToClipboard('adminKey')">📋 Copy</button>
+                </div>
+                
+                <div style="margin: 15px 0;">
+                    <strong>User Key:</strong>
+                    <div class="key-display" id="userKey"></div>
+                    <button class="btn btn-small" onclick="copyToClipboard('userKey')">📋 Copy</button>
+                </div>
+                
+                <p style="margin-top: 20px;"><strong>Now update your Apps Script:</strong></p>
+                <ol>
+                    <li>Go back to your Apps Script editor</li>
+                    <li>Find the lines:<br><code style="background: #f5f5f5; padding: 2px 6px;">const ADMIN_KEY = 'GENERATE_RANDOM_KEY_HERE';</code></li>
+                    <li>Replace them with your generated keys above</li>
+                    <li>Click <strong>Deploy → Manage deployments → Edit → New version → Deploy</strong></li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Step 4: Generate Links -->
+        <div class="setup-step">
+            <h3>Step 4: Generate Access Links</h3>
+            <button class="btn btn-primary" onclick="generateLinks()">🔗 Generate Links</button>
+            
+            <div id="linksDisplay" style="display: none; margin-top: 20px;">
+                <div class="warning">
+                    <strong>🔒 Security Note:</strong> These links contain access keys. Share them only with trusted members.
+                </div>
+                
+                <div style="margin: 20px 0;">
+                    <h4>Admin Link (Full Access)</h4>
+                    <p style="font-size: 13px; color: #666;">Use this link to approve expenses and manage participants</p>
+                    <div class="link-display" id="adminLink"></div>
+                    <button class="btn btn-small" onclick="copyToClipboard('adminLink')">📋 Copy Link</button>
+                    <button class="btn btn-small" onclick="openLink('admin')">🔗 Open Admin Dashboard</button>
+                </div>
+                
+                <div style="margin: 20px 0;">
+                    <h4>User Link (Submit Only)</h4>
+                    <p style="font-size: 13px; color: #666;">Share this with group members to submit expenses</p>
+                    <div class="link-display" id="userLink"></div>
+                    <button class="btn btn-small" onclick="copyToClipboard('userLink')">📋 Copy Link</button>
+                    <button class="btn btn-small" onclick="openLink('user')">🔗 Open User Page</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let generatedAdminKey = '';
+        let generatedUserKey = '';
+        let groupId = '';
+        
+        // Generate random key
+        function generateRandomKey(length = 32) {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let key = '';
+            for (let i = 0; i < length; i++) {
+                key += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return key;
+        }
+        
+        // Display Apps Script code
+        function displayScriptCode() {
+            fetch('google-script-simple.gs')
+                .then(r => r.text())
+                .then(code => {
+                    document.getElementById('scriptCode').textContent = code;
+                })
+                .catch(() => {
+                    document.getElementById('scriptCode').textContent = '// Error loading script. Please copy from google-script-simple.gs file';
+                });
+        }
+        
+        window.copyScriptCode = function() {
+            const code = document.getElementById('scriptCode').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                showStatus('Script code copied to clipboard!', 'success');
+            });
+        };
+        
+        window.generateKeys = function() {
+            generatedAdminKey = generateRandomKey(32);
+            generatedUserKey = generateRandomKey(32);
+            groupId = 'group_' + Date.now();
+            
+            document.getElementById('adminKey').textContent = generatedAdminKey;
+            document.getElementById('userKey').textContent = generatedUserKey;
+            document.getElementById('keysDisplay').style.display = 'block';
+            
+            showStatus('Keys generated! Copy them and update your Apps Script.', 'success');
+        };
+        
+        window.generateLinks = function() {
+            const groupName = document.getElementById('groupName').value.trim();
+            const sheetUrl = document.getElementById('sheetUrl').value.trim();
+            const webAppUrl = document.getElementById('webAppUrl').value.trim();
+            
+            if (!groupName || !sheetUrl || !webAppUrl) {
+                showStatus('Please fill in all fields above first', 'error');
+                return;
+            }
+            
+            if (!generatedAdminKey || !generatedUserKey) {
+                showStatus('Please generate keys first (Step 3)', 'error');
+                return;
+            }
+            
+            // Save group config to localStorage
+            const groupConfig = {
+                id: groupId,
+                name: groupName,
+                sheetUrl: sheetUrl,
+                apiUrl: webAppUrl
+            };
+            
+            const groups = JSON.parse(localStorage.getItem('expenseGroups') || '[]');
+            groups.push(groupConfig);
+            localStorage.setItem('expenseGroups', JSON.stringify(groups));
+            
+            // Generate links
+            const baseUrl = window.location.origin + window.location.pathname.replace('setup-simple.html', '');
+            const adminLink = `${baseUrl}admin.html?key=${encodeURIComponent(generatedAdminKey)}&group=${encodeURIComponent(groupId)}`;
+            const userLink = `${baseUrl}user.html?key=${encodeURIComponent(generatedUserKey)}&group=${encodeURIComponent(groupId)}`;
+            
+            document.getElementById('adminLink').textContent = adminLink;
+            document.getElementById('userLink').textContent = userLink;
+            document.getElementById('linksDisplay').style.display = 'block';
+            
+            showStatus('Links generated! Save them securely.', 'success');
+        };
+        
+        window.copyToClipboard = function(elementId) {
+            const text = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                showStatus('Copied to clipboard!', 'success');
+            });
+        };
+        
+        window.openLink = function(type) {
+            const linkId = type === 'admin' ? 'adminLink' : 'userLink';
+            const url = document.getElementById(linkId).textContent;
+            if (url) {
+                window.open(url, '_blank');
+            }
+        };
+        
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.innerHTML = `<div class="status-message status-${type}">${message}</div>`;
+            setTimeout(() => {
+                statusDiv.innerHTML = '';
+            }, 5000);
+        }
+        
+        // Initialize
+        displayScriptCode();
+    </script>
+</body>
+</html>

@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sabarimala 2026 - Admin Dashboard</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🙏 Sabarimala 2026</h1>
+            <p>Admin Dashboard</p>
+            <p id="groupName" style="font-size: 14px; color: #666;"></p>
+        </div>
+
+        <div id="statusMessage"></div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('pending')">⏳ Pending Approvals</button>
+            <button class="tab" onclick="switchTab('participants')">👥 Participants</button>
+            <button class="tab" onclick="switchTab('expenses')">💰 Expenses</button>
+            <button class="tab" onclick="switchTab('settlements')">🧮 Settlements</button>
+        </div>
+
+        <!-- Pending Approvals Tab -->
+        <div id="pending" class="tab-content active">
+            <h2>Pending Expense Approvals</h2>
+            <div id="pendingList">
+                <!-- Pending expenses will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Participants Tab -->
+        <div id="participants" class="tab-content">
+            <h2>Manage Participants</h2>
+            
+            <div class="form-group">
+                <label>Add Participant:</label>
+                <input type="text" id="participantName" placeholder="Enter name">
+                <button class="btn btn-primary" onclick="addParticipant()" style="margin-top: 10px;">➕ Add Participant</button>
+            </div>
+
+            <div class="participant-list" id="participantList">
+                <!-- Participants will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Expenses Tab -->
+        <div id="expenses" class="tab-content">
+            <h2>Add New Expense (Auto-Approved)</h2>
+            
+            <div class="form-group">
+                <label>Date:</label>
+                <input type="date" id="expenseDate">
+            </div>
+
+            <div class="form-group">
+                <label>Description:</label>
+                <input type="text" id="expenseDescription" placeholder="e.g., Dinner at restaurant">
+            </div>
+
+            <div class="form-group">
+                <label>Amount (₹):</label>
+                <input type="number" id="expenseAmount" placeholder="0.00" step="0.01">
+            </div>
+
+            <div class="form-group">
+                <label>Paid By:</label>
+                <select id="expensePaidBy">
+                    <option value="">Select participant...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Split Between:</label>
+                <div id="splitCheckboxes" class="split-checkboxes">
+                    <!-- Checkboxes will be loaded here -->
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="submitExpense()">✅ Add Expense</button>
+
+            <h2 style="margin-top: 40px;">All Expenses</h2>
+            <div class="expense-list" id="expenseList">
+                <!-- Expenses will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Settlements Tab -->
+        <div id="settlements" class="tab-content">
+            <h2>Settlement Calculations</h2>
+            
+            <div class="settlement-summary">
+                <h3>Who Owes Whom</h3>
+                <div id="settlementList">
+                    <!-- Settlement calculations will be shown here -->
+                </div>
+            </div>
+
+            <div class="settlement-confirmations">
+                <h3>Confirmed Settlements</h3>
+                <div id="confirmedSettlements">
+                    <!-- Confirmed settlements will be shown here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { CONFIG, AppState, Utils } from './js/config-simple.js';
+        import { API } from './js/api-simple.js';
+
+        // Global functions for button handlers
+        window.switchTab = function(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        };
+
+        window.addParticipant = async function() {
+            const name = document.getElementById('participantName').value.trim();
+            
+            if (!name) {
+                Utils.showStatus('Please enter a participant name', 'error');
+                return;
+            }
+            
+            try {
+                const result = await API.post('addParticipant', { name });
+                
+                if (result.success) {
+                    Utils.showStatus('Participant added!', 'success');
+                    document.getElementById('participantName').value = '';
+                    await loadParticipants();
+                } else {
+                    Utils.showStatus('Error: ' + (result.error || 'Failed to add participant'), 'error');
+                }
+            } catch (error) {
+                Utils.showStatus('Error adding participant', 'error');
+            }
+        };
+
+        window.removeParticipant = async function(name) {
+            if (!confirm(`Remove ${name}?`)) return;
+            
+            try {
+                const result = await API.post('removeParticipant', { name });
+                
+                if (result.success) {
+                    Utils.showStatus('Participant removed', 'success');
+                    await loadParticipants();
+                } else {
+                    Utils.showStatus('Error: ' + (result.error || 'Failed to remove participant'), 'error');
+                }
+            } catch (error) {
+                Utils.showStatus('Error removing participant', 'error');
+            }
+        };
+
+        window.submitExpense = async function() {
+            const date = document.getElementById('expenseDate').value;
+            const description = document.getElementById('expenseDescription').value;
+            const amount = parseFloat(document.getElementById('expenseAmount').value);
+            const paidBy = document.getElementById('expensePaidBy').value;
+            
+            const splitCheckboxes = document.querySelectorAll('#splitCheckboxes input:checked');
+            const splitBetween = Array.from(splitCheckboxes).map(cb => cb.value);
+            
+            if (!date || !description || !amount || !paidBy || splitBetween.length === 0) {
+                Utils.showStatus('Please fill all fields', 'error');
+                return;
+            }
+            
+            try {
+                const result = await API.post('addExpense', {
+                    expense: { date, description, amount, paidBy, splitBetween }
+                });
+                
+                if (result.success) {
+                    Utils.showStatus('Expense added!', 'success');
+                    
+                    // Clear form
+                    document.getElementById('expenseDescription').value = '';
+                    document.getElementById('expenseAmount').value = '';
+                    document.getElementById('expensePaidBy').value = '';
+                    document.querySelectorAll('#splitCheckboxes input').forEach(cb => cb.checked = false);
+                    
+                    await loadExpenses();
+                } else {
+                    Utils.showStatus('Error: ' + (result.error || 'Failed to add expense'), 'error');
+                }
+            } catch (error) {
+                Utils.showStatus('Error adding expense', 'error');
+            }
+        };
+
+        window.approveExpense = async function(index) {
+            try {
+                const result = await API.post('approveExpense', { index });
+                
+                if (result.success) {
+                    Utils.showStatus('Expense approved!', 'success');
+                    await loadPendingExpenses();
+                    await loadExpenses();
+                } else {
+                    Utils.showStatus('Error: ' + (result.error || 'Failed to approve expense'), 'error');
+                }
+            } catch (error) {
+                Utils.showStatus('Error approving expense', 'error');
+            }
+        };
+
+        window.rejectExpense = async function(index) {
+            if (!confirm('Reject this expense?')) return;
+            
+            try {
+                const result = await API.post('rejectExpense', { index });
+                
+                if (result.success) {
+                    Utils.showStatus('Expense rejected', 'success');
+                    await loadPendingExpenses();
+                } else {
+                    Utils.showStatus('Error: ' + (result.error || 'Failed to reject expense'), 'error');
+                }
+            } catch (error) {
+                Utils.showStatus('Error rejecting expense', 'error');
+            }
+        };
+
+        window.confirmSettlement = async function(from, to, amount) {
+            const confirmedBy = prompt(`Confirming settlement:\n${from} pays ₹${amount.toFixed(2)} to ${to}\n\nEnter your name to confirm:`);
+            
+            if (!confirmedBy || confirmedBy.trim() === '') {
+                return;
+            }
+            
+            try {
+                const settlementId = `${from}-${to}`;
+                const result = await API.post('confirmSettlement', {
+                    settlementId, from, to, amount, confirmedBy: confirmedBy.trim()
+                });
+                
+                if (result.success) {
+                    Utils.showStatus('Settlement confirmed!', 'success');
+                    await loadSettlements();
+                } else {
+                    Utils.showStatus('Error: ' + (result.error || 'Failed to confirm settlement'), 'error');
+                }
+            } catch (error) {
+                Utils.showStatus('Error confirming settlement', 'error');
+            }
+        };
+
+        async function loadPendingExpenses() {
+            try {
+                const data = await API.get('getPendingExpenses');
+                
+                if (data.success) {
+                    const listDiv = document.getElementById('pendingList');
+                    
+                    if (data.pending.length === 0) {
+                        listDiv.innerHTML = '<p>No pending approvals. 🎉</p>';
+                        return;
+                    }
+                    
+                    listDiv.innerHTML = data.pending.map(expense => `
+                        <div class="expense-item pending">
+                            <div class="expense-header">
+                                <span class="expense-description">${Utils.escapeHtml(expense.description)}</span>
+                                <span class="expense-amount">₹${expense.amount.toFixed(2)}</span>
+                            </div>
+                            <div class="expense-details">
+                                <span>📅 ${expense.date}</span>
+                                <span>👤 Paid by: ${Utils.escapeHtml(expense.paidBy)}</span>
+                                <span>👥 Split: ${expense.splitBetween.map(Utils.escapeHtml).join(', ')}</span>
+                            </div>
+                            <div class="expense-actions">
+                                <button class="btn btn-primary btn-small" onclick="approveExpense(${expense.index})">✓ Approve</button>
+                                <button class="btn btn-danger btn-small" onclick="rejectExpense(${expense.index})">✗ Reject</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading pending expenses:', error);
+            }
+        }
+
+        async function loadParticipants() {
+            try {
+                const data = await API.get('getParticipants');
+                
+                if (data.success) {
+                    AppState.participants = data.participants;
+                    
+                    // Update participant list
+                    const listDiv = document.getElementById('participantList');
+                    if (data.participants.length === 0) {
+                        listDiv.innerHTML = '<p>No participants yet. Add some above.</p>';
+                    } else {
+                        listDiv.innerHTML = data.participants.map(p => `
+                            <div class="participant-item">
+                                <span>${Utils.escapeHtml(p)}</span>
+                                <button class="btn btn-danger btn-small" onclick="removeParticipant('${Utils.escapeHtml(p)}')">Remove</button>
+                            </div>
+                        `).join('');
+                    }
+                    
+                    // Update paid by dropdown
+                    const paidBySelect = document.getElementById('expensePaidBy');
+                    paidBySelect.innerHTML = '<option value="">Select participant...</option>';
+                    data.participants.forEach(p => {
+                        paidBySelect.innerHTML += `<option value="${Utils.escapeHtml(p)}">${Utils.escapeHtml(p)}</option>`;
+                    });
+                    
+                    // Update split checkboxes
+                    const splitDiv = document.getElementById('splitCheckboxes');
+                    splitDiv.innerHTML = '';
+                    data.participants.forEach(p => {
+                        splitDiv.innerHTML += `
+                            <label class="checkbox-label">
+                                <input type="checkbox" value="${Utils.escapeHtml(p)}">
+                                ${Utils.escapeHtml(p)}
+                            </label>
+                        `;
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading participants:', error);
+            }
+        }
+
+        async function loadExpenses() {
+            try {
+                const data = await API.get('getExpenses');
+                
+                if (data.success) {
+                    AppState.expenses = data.expenses;
+                    
+                    const listDiv = document.getElementById('expenseList');
+                    
+                    if (data.expenses.length === 0) {
+                        listDiv.innerHTML = '<p>No expenses yet.</p>';
+                        return;
+                    }
+                    
+                    listDiv.innerHTML = data.expenses.map(expense => `
+                        <div class="expense-item">
+                            <div class="expense-header">
+                                <span class="expense-description">${Utils.escapeHtml(expense.description)}</span>
+                                <span class="expense-amount">₹${expense.amount.toFixed(2)}</span>
+                            </div>
+                            <div class="expense-details">
+                                <span>📅 ${expense.date}</span>
+                                <span>👤 Paid by: ${Utils.escapeHtml(expense.paidBy)}</span>
+                                <span>👥 Split: ${expense.splitBetween.map(Utils.escapeHtml).join(', ')}</span>
+                                ${expense.status === 'pending' ? '<span class="status-badge pending">⏳ Pending</span>' : ''}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading expenses:', error);
+            }
+        }
+
+        async function loadSettlements() {
+            try {
+                const [expensesData, confirmationsData] = await Promise.all([
+                    API.get('getExpenses'),
+                    API.get('getSettlementConfirmations')
+                ]);
+                
+                if (!expensesData.success) return;
+                
+                const confirmations = confirmationsData.success ? confirmationsData.confirmations : {};
+                
+                // Calculate settlements
+                const balances = {};
+                
+                expensesData.expenses.forEach(expense => {
+                    const share = expense.amount / expense.splitBetween.length;
+                    
+                    expense.splitBetween.forEach(person => {
+                        if (!balances[person]) balances[person] = 0;
+                        balances[person] -= share;
+                    });
+                    
+                    if (!balances[expense.paidBy]) balances[expense.paidBy] = 0;
+                    balances[expense.paidBy] += expense.amount;
+                });
+                
+                // Simplify settlements
+                const settlements = [];
+                const creditors = [];
+                const debtors = [];
+                
+                Object.entries(balances).forEach(([person, balance]) => {
+                    if (Math.abs(balance) < 0.01) return;
+                    
+                    if (balance > 0) {
+                        creditors.push({ person, amount: balance });
+                    } else {
+                        debtors.push({ person, amount: -balance });
+                    }
+                });
+                
+                creditors.sort((a, b) => b.amount - a.amount);
+                debtors.sort((a, b) => b.amount - a.amount);
+                
+                let i = 0, j = 0;
+                while (i < creditors.length && j < debtors.length) {
+                    const creditor = creditors[i];
+                    const debtor = debtors[j];
+                    const amount = Math.min(creditor.amount, debtor.amount);
+                    
+                    settlements.push({
+                        from: debtor.person,
+                        to: creditor.person,
+                        amount: amount
+                    });
+                    
+                    creditor.amount -= amount;
+                    debtor.amount -= amount;
+                    
+                    if (creditor.amount < 0.01) i++;
+                    if (debtor.amount < 0.01) j++;
+                }
+                
+                // Display settlements
+                const listDiv = document.getElementById('settlementList');
+                
+                if (settlements.length === 0) {
+                    listDiv.innerHTML = '<p>All settled up! 🎉</p>';
+                } else {
+                    listDiv.innerHTML = settlements.map(s => {
+                        const settlementId = `${s.from}-${s.to}`;
+                        const isConfirmed = confirmations[settlementId];
+                        
+                        if (isConfirmed) return '';
+                        
+                        return `
+                            <div class="settlement-item">
+                                <div class="settlement-info">
+                                    <span class="settlement-from">${Utils.escapeHtml(s.from)}</span>
+                                    <span class="settlement-arrow">→</span>
+                                    <span class="settlement-to">${Utils.escapeHtml(s.to)}</span>
+                                    <span class="settlement-amount">₹${s.amount.toFixed(2)}</span>
+                                </div>
+                                <button class="btn btn-small" onclick="confirmSettlement('${Utils.escapeHtml(s.from)}', '${Utils.escapeHtml(s.to)}', ${s.amount})">
+                                    ✓ Confirm
+                                </button>
+                            </div>
+                        `;
+                    }).join('');
+                }
+                
+                // Display confirmed settlements
+                const confirmedDiv = document.getElementById('confirmedSettlements');
+                const confirmedList = Object.entries(confirmations);
+                
+                if (confirmedList.length === 0) {
+                    confirmedDiv.innerHTML = '<p>No confirmed settlements yet.</p>';
+                } else {
+                    confirmedDiv.innerHTML = confirmedList.map(([id, conf]) => `
+                        <div class="settlement-item confirmed">
+                            <div class="settlement-info">
+                                <span>${Utils.escapeHtml(conf.from)} → ${Utils.escapeHtml(conf.to)}: ₹${conf.amount.toFixed(2)}</span>
+                            </div>
+                            <div class="settlement-confirmed-by">
+                                ✓ Confirmed by ${Utils.escapeHtml(conf.confirmedBy)}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading settlements:', error);
+            }
+        }
+
+        // Initialize
+        (async function init() {
+            // Parse URL to get access key
+            const urlParams = new URLSearchParams(window.location.search);
+            const key = urlParams.get('key');
+            const groupId = urlParams.get('group');
+            
+            if (!key || !groupId) {
+                document.getElementById('statusMessage').innerHTML = 
+                    '<div class="status-message status-error">Invalid admin link. Please use the link generated during setup.</div>';
+                return;
+            }
+            
+            // Load group config
+            const groups = JSON.parse(localStorage.getItem('expenseGroups') || '[]');
+            const group = groups.find(g => g.id === groupId);
+            
+            if (!group || !group.apiUrl) {
+                document.getElementById('statusMessage').innerHTML = 
+                    '<div class="status-message status-error">Group configuration not found. Please run setup again.</div>';
+                return;
+            }
+            
+            CONFIG.API_URL = group.apiUrl;
+            CONFIG.ACCESS_KEY = key;
+            CONFIG.IS_ADMIN = true;
+            document.getElementById('groupName').textContent = group.name;
+            
+            // Set today's date
+            document.getElementById('expenseDate').valueAsDate = new Date();
+            
+            // Load data
+            await loadPendingExpenses();
+            await loadParticipants();
+            await loadExpenses();
+            await loadSettlements();
+        })();
+    </script>
+</body>
+</html>
