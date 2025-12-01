@@ -21,6 +21,7 @@
             <button class="tab active" onclick="switchTab('pending')">⏳ Pending Approvals</button>
             <button class="tab" onclick="switchTab('registrations')">📝 Registration Requests</button>
             <button class="tab" onclick="switchTab('summary')">📊 Summary</button>
+            <button class="tab" onclick="switchTab('balance')">💵 My Balance</button>
             <button class="tab" onclick="switchTab('participants')">👥 Participants</button>
             <button class="tab" onclick="switchTab('links')">🔗 User Links</button>
             <button class="tab" onclick="switchTab('expenses')">💰 Expenses</button>
@@ -71,6 +72,14 @@
                 <div id="individualSharesList">
                     <!-- Individual shares will be loaded here -->
                 </div>
+            </div>
+        </div>
+
+        <!-- My Balance Tab -->
+        <div id="balance" class="tab-content">
+            <h2>My Balance Summary</h2>
+            <div id="adminBalanceSummary">
+                <!-- Balance summary will be shown here -->
             </div>
         </div>
 

@@ -309,7 +309,7 @@ function getMyExpenses(sheet, userName) {
   const myExpenses = [];
   
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0] && data[i][3] === userName) {
+    if (data[i][0] && data[i][3] && data[i][3].toLowerCase() === userName.toLowerCase()) {
       myExpenses.push({
         index: i - 1,
         date: data[i][0],
@@ -446,28 +446,30 @@ function calculateAndStoreSettlements(sheet) {
     // Calculate share per person
     const share = amount / splitBetween.length;
     
-    // Deduct from each person's balance
+    // Deduct from each person's balance (case-insensitive)
     splitBetween.forEach(person => {
-      if (!balances[person]) balances[person] = 0;
-      balances[person] -= share;
+      const personKey = person.toLowerCase();
+      if (!balances[personKey]) balances[personKey] = { name: person, balance: 0 };
+      balances[personKey].balance -= share;
     });
     
-    // Add to payer's balance
-    if (!balances[paidBy]) balances[paidBy] = 0;
-    balances[paidBy] += amount;
+    // Add to payer's balance (case-insensitive)
+    const paidByKey = paidBy.toLowerCase();
+    if (!balances[paidByKey]) balances[paidByKey] = { name: paidBy, balance: 0 };
+    balances[paidByKey].balance += amount;
   }
   
   // Optimized settlement calculation
   const creditors = [];
   const debtors = [];
   
-  Object.entries(balances).forEach(([person, balance]) => {
-    if (Math.abs(balance) < 0.01) return;
+  Object.entries(balances).forEach(([key, data]) => {
+    if (Math.abs(data.balance) < 0.01) return;
     
-    if (balance > 0) {
-      creditors.push({ person, amount: balance });
+    if (data.balance > 0) {
+      creditors.push({ person: data.name, amount: data.balance });
     } else {
-      debtors.push({ person, amount: -balance });
+      debtors.push({ person: data.name, amount: -data.balance });
     }
   });
   

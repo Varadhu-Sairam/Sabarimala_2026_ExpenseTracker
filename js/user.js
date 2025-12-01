@@ -18,19 +18,19 @@ window.registerUser = async function() {
     }
     
     try {
-        // Check if user already exists as a participant
+        // Check if user already exists as a participant (case-insensitive)
         const participantsData = await API.get('getParticipants');
-        if (participantsData.success && participantsData.participants.includes(name)) {
+        if (participantsData.success && participantsData.participants.some(p => p.toLowerCase() === name.toLowerCase())) {
             document.getElementById('registrationStatus').innerHTML = 
                 '<div class="status-message status-info">✓ You are already registered! Please contact the admin to get your personalized access link.</div>';
             return;
         }
         
-        // Check if registration already pending
+        // Check if registration already pending (case-insensitive)
         const registrationsData = await API.get('getPendingRegistrations');
         if (registrationsData.success) {
-            const pendingNames = registrationsData.registrations.map(r => r.name);
-            if (pendingNames.includes(name)) {
+            const pendingNames = registrationsData.registrations.map(r => r.name.toLowerCase());
+            if (pendingNames.includes(name.toLowerCase())) {
                 document.getElementById('registrationStatus').innerHTML = 
                     '<div class="status-message status-info">⏳ Your registration is already pending approval. Please wait for admin to approve.</div>';
                 return;
@@ -305,14 +305,14 @@ async function loadMyBalance() {
             data.expenses.forEach(expense => {
                 const share = expense.amount / expense.splitBetween.length;
                 
-                // Amount I paid
-                if (expense.paidBy === userName) {
+                // Amount I paid (case-insensitive)
+                if (expense.paidBy && expense.paidBy.toLowerCase() === userName.toLowerCase()) {
                     totalPaid += expense.amount;
                     myBalance += expense.amount;
                 }
                 
-                // Amount I owe (my share)
-                if (expense.splitBetween.includes(userName)) {
+                // Amount I owe (my share) (case-insensitive)
+                if (expense.splitBetween.some(person => person.toLowerCase() === userName.toLowerCase())) {
                     totalOwed += share;
                     myBalance -= share;
                 }
@@ -363,10 +363,10 @@ window.editExpense = async function(index) {
         document.getElementById('expenseAmount').value = expense.amount;
         document.getElementById('expensePaidBy').value = expense.paidBy;
         
-        // Check split participants
+        // Check split participants (case-insensitive)
         const checkboxes = document.querySelectorAll('#splitCheckboxes input[type="checkbox"]');
         checkboxes.forEach(cb => {
-            cb.checked = expense.splitBetween.includes(cb.value);
+            cb.checked = expense.splitBetween.some(person => person.toLowerCase() === cb.value.toLowerCase());
         });
         
         // Store the index for update

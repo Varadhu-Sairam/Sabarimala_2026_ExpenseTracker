@@ -22,6 +22,8 @@ window.switchTab = function(tabName) {
         loadPendingRegistrations();
     } else if (tabName === 'summary') {
         loadSummary();
+    } else if (tabName === 'balance') {
+        loadAdminBalance();
     } else if (tabName === 'participants') {
         loadParticipants();
     } else if (tabName === 'links') {
@@ -643,6 +645,71 @@ async function loadSummary() {
         }
     } catch (error) {
         console.error('Error loading summary:', error);
+    }
+}
+
+async function loadAdminBalance() {
+    try {
+        // Get admin name from decrypted data
+        const adminName = AppState.decryptedData?.name || 'Admin';
+        
+        const data = await API.get('getExpenses');
+        
+        if (!data.success) return;
+        
+        // Filter only approved expenses
+        const approvedExpenses = data.expenses.filter(e => e.status === 'approved');
+        
+        // Calculate what admin paid (case-insensitive)
+        const amountPaid = approvedExpenses
+            .filter(e => e.paidBy && e.paidBy.toLowerCase() === adminName.toLowerCase())
+            .reduce((sum, e) => sum + e.amount, 0);
+        
+        // Calculate admin's share of all expenses (case-insensitive)
+        const amountOwed = approvedExpenses.reduce((sum, expense) => {
+            if (expense.splitBetween.some(person => person.toLowerCase() === adminName.toLowerCase())) {
+                return sum + (expense.amount / expense.splitBetween.length);
+            }
+            return sum;
+        }, 0);
+        
+        // Calculate balance
+        const balance = amountPaid - amountOwed;
+        
+        const balanceSummaryDiv = document.getElementById('adminBalanceSummary');
+        
+        let balanceStatus = '';
+        let balanceClass = '';
+        
+        if (balance > 0) {
+            balanceStatus = `You are owed ₹${balance.toFixed(2)}`;
+            balanceClass = 'balance-positive';
+        } else if (balance < 0) {
+            balanceStatus = `You owe ₹${Math.abs(balance).toFixed(2)}`;
+            balanceClass = 'balance-negative';
+        } else {
+            balanceStatus = 'You are all settled up!';
+            balanceClass = 'balance-zero';
+        }
+        
+        balanceSummaryDiv.innerHTML = `
+            <div class="balance-summary ${balanceClass}">
+                <h3>${balanceStatus}</h3>
+                <div class="balance-details">
+                    <div class="balance-detail-item">
+                        <span>You paid:</span>
+                        <span class="balance-amount">₹${amountPaid.toFixed(2)}</span>
+                    </div>
+                    <div class="balance-detail-item">
+                        <span>Your share:</span>
+                        <span class="balance-amount">₹${amountOwed.toFixed(2)}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading admin balance:', error);
+        document.getElementById('adminBalanceSummary').innerHTML = '<p>Error loading balance information.</p>';
     }
 }
 
