@@ -596,8 +596,6 @@ async function decryptData(encryptedStr) {
         } else {
             // Generic/shared link - always show registration for new users
             document.getElementById('registrationSection').classList.remove('hidden');
-            await loadMyExpenses();
-            await loadMyBalance();
         }
     }
 })();
