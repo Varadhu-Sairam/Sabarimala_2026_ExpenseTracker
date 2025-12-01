@@ -603,7 +603,7 @@ async function loadSummary() {
         if (!data.success) return;
         
         // Filter only approved expenses
-        const approvedExpenses = data.expenses.filter(e => e.status === 'Approved');
+        const approvedExpenses = data.expenses.filter(e => e.status === 'approved');
         
         // Calculate total group expense
         const totalGroupExpense = approvedExpenses.reduce((sum, exp) => sum + exp.amount, 0);

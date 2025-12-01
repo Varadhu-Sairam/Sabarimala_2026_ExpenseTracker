@@ -470,7 +470,7 @@ function calculateAndStoreSettlements(sheet) {
   
   for (let i = 1; i < expenses.length; i++) {
     const status = expenses[i][5];
-    if (status !== 'Approved') continue;
+    if (status !== 'approved') continue;
     
     const amount = parseFloat(expenses[i][2]);
     const paidBy = expenses[i][3];
