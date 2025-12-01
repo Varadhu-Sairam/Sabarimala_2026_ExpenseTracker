@@ -21,6 +21,12 @@ const Users = {
                 
                 // Generate invite link for admin
                 window.generateInviteLink();
+                
+                // Setup copy button event listener
+                const copyBtn = document.getElementById('copyInviteLinkBtn');
+                if (copyBtn) {
+                    copyBtn.addEventListener('click', window.copyInviteLink);
+                }
             }
         } catch (error) {
             console.error('Error loading users:', error);

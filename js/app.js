@@ -374,7 +374,10 @@ window.closeGroupSwitcher = function(event) {
  */
 window.generateInviteLink = function() {
     const activeGroup = AppState.loadActiveGroup();
-    if (!activeGroup) return;
+    if (!activeGroup) {
+        console.error('No active group found');
+        return;
+    }
     
     // Create a clean version without sensitive data
     const inviteData = {
@@ -395,6 +398,16 @@ window.generateInviteLink = function() {
     const linkInput = document.getElementById('inviteLink');
     if (linkInput) {
         linkInput.value = inviteLink;
+        console.log('Invite link generated:', inviteLink);
+    } else {
+        console.error('inviteLink input element not found');
+        // Try again after a short delay
+        setTimeout(() => {
+            const retryInput = document.getElementById('inviteLink');
+            if (retryInput) {
+                retryInput.value = inviteLink;
+            }
+        }, 500);
     }
 };
 
