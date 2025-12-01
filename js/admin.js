@@ -666,8 +666,32 @@ async function loadSummary() {
 
 async function loadAdminBalance() {
     try {
-        // Get admin name from decrypted data
-        const adminName = AppState.decryptedData?.name || 'Admin';
+        // Get admin's personal name from AppState or prompt
+        if (!AppState.adminPersonalName) {
+            // Get list of participants to choose from
+            const participantsData = await API.get('getParticipants');
+            if (!participantsData.success) {
+                Utils.showStatus('Failed to load participants', 'error');
+                return;
+            }
+            
+            const name = prompt(`Enter your name as a participant:\n(Choose from: ${participantsData.participants.join(', ')})`);
+            if (!name || !name.trim()) return;
+            
+            // Verify name exists in participants (case-insensitive)
+            const matchingParticipant = participantsData.participants.find(
+                p => p.toLowerCase() === name.trim().toLowerCase()
+            );
+            
+            if (!matchingParticipant) {
+                Utils.showStatus('Name not found in participants list', 'error');
+                return;
+            }
+            
+            AppState.adminPersonalName = matchingParticipant;
+        }
+        
+        const adminName = AppState.adminPersonalName;
         
         const data = await API.get('getExpenses');
         
