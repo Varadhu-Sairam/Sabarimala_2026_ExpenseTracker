@@ -151,11 +151,12 @@ async function decryptData(encryptedStr) {
 // Display Apps Script code with keys and admin name filled in
 function displayScriptCode() {
     const adminName = document.getElementById('adminName').value.trim() || 'Admin';
+    const baseUrl = window.location.origin + window.location.pathname.replace('setup.html', '');
     
     fetch('google-script.gs')
         .then(r => r.text())
         .then(code => {
-            // Replace placeholders with actual keys and admin name
+            // Replace placeholders with actual keys, admin name, and base URL
             if (generatedAdminKey && generatedUserKey) {
                 code = code.replace("const ADMIN_KEY = 'GENERATE_RANDOM_KEY_HERE';", 
                                   `const ADMIN_KEY = '${generatedAdminKey}';`);
@@ -163,6 +164,8 @@ function displayScriptCode() {
                                   `const USER_KEY = '${generatedUserKey}';`);
                 code = code.replace("const ADMIN_NAME = 'Admin';", 
                                   `const ADMIN_NAME = '${adminName.replace(/'/g, "\\'")}';`);
+                code = code.replace("const BASE_URL = 'https://your-username.github.io/your-repo/';", 
+                                  `const BASE_URL = '${baseUrl}';`);
             }
             document.getElementById('scriptCode').textContent = code;
         })

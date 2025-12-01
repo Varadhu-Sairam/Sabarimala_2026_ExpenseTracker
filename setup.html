@@ -173,19 +173,38 @@
             </div>
         </div>
 
-        <!-- Step 5: Store Links in Sheet -->
+        <!-- Step 5: How User Links Work -->
         <div class="setup-step">
-            <h3>Step 5: Store Links for Future Reference</h3>
-            <p>After generating links above:</p>
-            <ol style="line-height: 1.8;">
-                <li><strong>Open the Admin Link</strong> - The admin link will be automatically saved to the "UserLinks" tab in your Google Sheet</li>
-                <li><strong>Go to "User Links" tab</strong> in the admin dashboard</li>
-                <li><strong>Paste the User Link</strong> in the provided input field and click "Store User Link"</li>
-                <li>Both links will now be stored in your sheet for easy retrieval if lost</li>
-            </ol>
+            <h3>Step 5: Understanding User Links</h3>
+            <p><strong>Two types of user links:</strong></p>
+            
+            <div style="background: #f0f8ff; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                <strong>1. Shared User Link (from Step 4)</strong>
+                <ul style="margin-top: 10px; line-height: 1.8;">
+                    <li>Generic link that allows anyone to register</li>
+                    <li>Users access this link and submit registration request</li>
+                    <li>Optional: Store in "User Links" tab for backup</li>
+                </ul>
+            </div>
+            
+            <div style="background: #f0fff4; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                <strong>2. Personalized User Links (Auto-generated)</strong>
+                <ul style="margin-top: 10px; line-height: 1.8;">
+                    <li>When you approve a registration, a personalized link is automatically generated for that user</li>
+                    <li>Each user gets their own unique link with tracking</li>
+                    <li>Automatically stored in "UserLinks" tab with user's name</li>
+                    <li>Share this personalized link with the approved user</li>
+                </ul>
+            </div>
             
             <div class="warning" style="margin-top: 15px;">
-                <strong>💡 Tip:</strong> Always keep a backup of your links. Once stored in the sheet, you can retrieve them anytime from the "User Links" tab in the admin dashboard.
+                <strong>📋 Workflow:</strong><br>
+                1. Open your admin link (stored automatically)<br>
+                2. Users register via shared user link<br>
+                3. You approve registrations in "Pending Registrations" tab<br>
+                4. Personalized links are generated and shown to you<br>
+                5. Share personalized links with approved users<br>
+                6. All links stored in "UserLinks" tab for future reference
             </div>
         </div>
     </div>

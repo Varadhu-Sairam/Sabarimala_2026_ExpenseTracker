@@ -640,6 +640,12 @@ async function decryptData(encryptedStr) {
     CONFIG.ACCESS_KEY = decryptedData.key;
     document.getElementById('groupName').textContent = decryptedData.name;
     
+    // Check if this is a personalized link with userName
+    if (decryptedData.userName) {
+        AppState.userName = decryptedData.userName;
+        console.log('Logged in as:', decryptedData.userName);
+    }
+    
     // Set today's date
     document.getElementById('expenseDate').valueAsDate = new Date();
     
@@ -648,12 +654,18 @@ async function decryptData(encryptedStr) {
     if (participantsData.success) {
         AppState.participants = participantsData.participants;
         
-        // Check if this is first time - show registration
-        if (participantsData.participants.length <= 1) {
-            // Only admin exists, show registration
+        // Check if this is a personalized link
+        if (decryptedData.userName) {
+            // Personalized link - show main content directly
+            document.getElementById('mainContent').classList.remove('hidden');
+            await loadParticipants();
+            await loadExpenses();
+            await loadSettlements();
+        } else if (participantsData.participants.length <= 1) {
+            // Generic link and only admin exists - show registration
             document.getElementById('registrationSection').classList.remove('hidden');
         } else {
-            // Show main content
+            // Generic link with participants - show main content
             document.getElementById('mainContent').classList.remove('hidden');
             await loadParticipants();
             await loadExpenses();

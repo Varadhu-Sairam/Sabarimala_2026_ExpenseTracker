@@ -256,18 +256,55 @@ window.confirmSettlement = async function(from, to, amount) {
 
 window.approveRegistration = async function(name) {
     try {
-        Utils.showStatus('Approving and generating user link...', 'info');
-        const result = await API.post('approveRegistration', { name: name });
+        Utils.showStatus('Approving and generating personalized user link...', 'info');
+        
+        // Generate personalized encrypted token for this user
+        const userData = {
+            key: CONFIG.ACCESS_KEY,  // Use USER_KEY for user access
+            apiUrl: CONFIG.API_URL,
+            name: document.getElementById('groupName').textContent,
+            userName: name,  // Track which user this link belongs to
+            isAdmin: false
+        };
+        
+        const encryptedToken = await encryptData(userData);
+        
+        // Generate personalized user link
+        const baseUrl = window.location.origin + window.location.pathname.replace('admin.html', '');
+        const userLink = `${baseUrl}user.html?token=${encryptedToken}`;
+        
+        // Approve registration with personalized link
+        const result = await API.post('approveRegistration', { 
+            name: name,
+            encryptedToken: encryptedToken,
+            userLink: userLink
+        });
         
         if (result.success) {
-            Utils.showStatus(`Registration approved for ${name}!`, 'success');
+            Utils.showStatus(`✅ Registration approved for ${name}! Personalized link generated.`, 'success');
+            
+            // Show the generated link to admin
+            const linkInfo = document.createElement('div');
+            linkInfo.className = 'status-message status-success';
+            linkInfo.style.marginTop = '10px';
+            linkInfo.innerHTML = `
+                <strong>Personalized link for ${Utils.escapeHtml(name)}:</strong><br>
+                <div style="word-break: break-all; margin: 10px 0; padding: 10px; background: white; border-radius: 4px;">
+                    ${Utils.escapeHtml(userLink)}
+                </div>
+                <button class="btn btn-small" onclick="copyLinkToClipboard('${Utils.escapeHtml(userLink)}')">📋 Copy Link</button>
+            `;
+            document.getElementById('statusMessage').appendChild(linkInfo);
+            
             await loadPendingRegistrations();
             await loadParticipants();
+            await loadUserLinks();  // Refresh user links list
         } else {
             Utils.showStatus('Error: ' + (result.error || 'Failed to approve registration'), 'error');
         }
     } catch (error) {
         Utils.showStatus('Error approving registration', 'error');
+        console.error(error);
     }
 };
 
@@ -722,6 +759,59 @@ async function decryptData(encryptedStr) {
         console.error('Decryption failed:', error);
         return null;
     }
+}
+
+async function encryptData(data) {
+    const encoder = new TextEncoder();
+    const dataStr = JSON.stringify(data);
+    
+    // Compress data using pako
+    const compressed = pako.deflate(dataStr);
+    const dataBuffer = compressed;
+    
+    // Generate a key from a passphrase
+    const passphrase = 'Sabarimala2026ExpenseTracker';
+    const passphraseBuffer = encoder.encode(passphrase);
+    const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        passphraseBuffer,
+        'PBKDF2',
+        false,
+        ['deriveBits', 'deriveKey']
+    );
+    
+    // Generate salt and IV
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    
+    const key = await crypto.subtle.deriveKey(
+        {
+            name: 'PBKDF2',
+            salt: salt,
+            iterations: 100000,
+            hash: 'SHA-256'
+        },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt']
+    );
+    
+    const encryptedBuffer = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv: iv },
+        key,
+        dataBuffer
+    );
+    
+    // Combine salt + iv + encrypted data
+    const combined = new Uint8Array(salt.length + iv.length + encryptedBuffer.byteLength);
+    combined.set(salt, 0);
+    combined.set(iv, salt.length);
+    combined.set(new Uint8Array(encryptedBuffer), salt.length + iv.length);
+    
+    // Convert to base64url
+    const base64 = btoa(String.fromCharCode(...combined));
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
 // === INITIALIZATION ===
