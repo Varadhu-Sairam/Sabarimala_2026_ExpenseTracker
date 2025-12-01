@@ -461,7 +461,11 @@ async function loadPendingExpenses() {
                 return;
             }
             
-            listDiv.innerHTML = data.pending.map(expense => `
+            listDiv.innerHTML = data.pending.map(expense => {
+                const submittedInfo = expense.submittedBy ? 
+                    `<span class="audit-info">📝 Submitted by: ${Utils.escapeHtml(expense.submittedBy)} ${expense.submittedAt ? 'at ' + new Date(expense.submittedAt).toLocaleString() : ''}</span>` : '';
+                
+                return `
                 <div class="expense-item pending" id="pending-${expense.index}">
                     <div class="expense-header">
                         <input type="text" class="edit-field" id="desc-${expense.index}" value="${Utils.escapeHtml(expense.description)}" disabled />
@@ -471,6 +475,7 @@ async function loadPendingExpenses() {
                         <span>📅 <input type="date" class="edit-field edit-date" id="date-${expense.index}" value="${expense.date}" disabled /></span>
                         <span>👤 Paid by: <input type="text" class="edit-field" id="paidby-${expense.index}" value="${Utils.escapeHtml(expense.paidBy)}" disabled /></span>
                         <span>👥 Split: <input type="text" class="edit-field" id="split-${expense.index}" value="${expense.splitBetween.map(Utils.escapeHtml).join(', ')}" disabled /></span>
+                        ${submittedInfo}
                     </div>
                     <div class="expense-actions">
                         <button class="btn btn-primary btn-small" onclick="approveExpense(${expense.index})">✓ Approve</button>
@@ -478,7 +483,7 @@ async function loadPendingExpenses() {
                         <button class="btn btn-danger btn-small" onclick="rejectExpense(${expense.index})">🗑️ Reject</button>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
     } catch (error) {
         console.error('Error loading pending expenses:', error);

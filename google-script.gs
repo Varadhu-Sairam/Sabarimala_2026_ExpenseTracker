@@ -242,7 +242,11 @@ function getExpenses(sheet, accessKey) {
           amount: data[i][2],
           paidBy: data[i][3],
           splitBetween: data[i][4] ? data[i][4].split(',') : [],
-          status: status
+          status: status,
+          submittedBy: data[i][6] || '',
+          submittedAt: data[i][7] || '',
+          approvedRejectedBy: data[i][8] || '',
+          approvedRejectedAt: data[i][9] || ''
         });
       }
     }
@@ -271,7 +275,9 @@ function getPendingExpenses(sheet) {
           description: data[i][1],
           amount: data[i][2],
           paidBy: data[i][3],
-          splitBetween: data[i][4] ? data[i][4].split(',') : []
+          splitBetween: data[i][4] ? data[i][4].split(',') : [],
+          submittedBy: data[i][6] || '',
+          submittedAt: data[i][7] || ''
         });
       }
     }
@@ -286,6 +292,10 @@ function getPendingExpenses(sheet) {
 function addExpense(sheet, expense, isAdmin) {
   const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
   
+  const now = new Date();
+  const status = isAdmin ? 'approved' : 'pending';
+  const submittedBy = expense.submittedBy || expense.paidBy; // Track who submitted
+  
   // Admin expenses are auto-approved, user expenses need approval
   expensesSheet.appendRow([
     expense.date,
@@ -293,12 +303,18 @@ function addExpense(sheet, expense, isAdmin) {
     expense.amount,
     expense.paidBy,
     expense.splitBetween.join(','),
-    isAdmin ? 'approved' : 'pending'
+    status,
+    submittedBy,
+    now,
+    isAdmin ? ADMIN_NAME : '', // If auto-approved, admin is the approver
+    isAdmin ? now : '' // If auto-approved, approval time is now
   ]);
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
-    status: isAdmin ? 'approved' : 'pending'
+    status: status,
+    submittedBy: submittedBy,
+    submittedAt: now
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -317,7 +333,11 @@ function getMyExpenses(sheet, userName) {
         amount: data[i][2],
         paidBy: data[i][3],
         splitBetween: data[i][4] ? data[i][4].split(',') : [],
-        status: data[i][5] || 'approved'
+        status: data[i][5] || 'approved',
+        submittedBy: data[i][6] || '',
+        submittedAt: data[i][7] || '',
+        approvedRejectedBy: data[i][8] || '',
+        approvedRejectedAt: data[i][9] || ''
       });
     }
   }
@@ -332,8 +352,8 @@ function updateExpense(sheet, data, isAdmin) {
   const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
   const row = data.index + 2; // +1 for header, +1 for 0-based index
   
-  // Get current expense data to check ownership
-  const currentData = expensesSheet.getRange(row, 1, 1, 6).getValues()[0];
+  // Get current expense data to check ownership (now 10 columns)
+  const currentData = expensesSheet.getRange(row, 1, 1, 10).getValues()[0];
   const currentStatus = currentData[5] || 'approved';
   
   // Users can only edit their own pending expenses
@@ -372,20 +392,33 @@ function updateExpense(sheet, data, isAdmin) {
 function approveExpense(sheet, index) {
   const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
   const row = index + 2; // +1 for header, +1 for 0-based index
-  expensesSheet.getRange(row, 6).setValue('approved');
+  const now = new Date();
+  
+  expensesSheet.getRange(row, 6).setValue('approved'); // Status
+  expensesSheet.getRange(row, 9).setValue(ADMIN_NAME); // Approved By
+  expensesSheet.getRange(row, 10).setValue(now); // Approved At
   
   return ContentService.createTextOutput(JSON.stringify({
-    success: true
+    success: true,
+    approvedBy: ADMIN_NAME,
+    approvedAt: now
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
 function rejectExpense(sheet, index) {
   const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
   const row = index + 2; // +1 for header, +1 for 0-based index
-  expensesSheet.deleteRow(row);
+  const now = new Date();
+  
+  // Change status to rejected instead of deleting (preserves audit trail)
+  expensesSheet.getRange(row, 6).setValue('rejected'); // Status
+  expensesSheet.getRange(row, 9).setValue(ADMIN_NAME); // Rejected By
+  expensesSheet.getRange(row, 10).setValue(now); // Rejected At
   
   return ContentService.createTextOutput(JSON.stringify({
-    success: true
+    success: true,
+    rejectedBy: ADMIN_NAME,
+    rejectedAt: now
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -587,7 +620,7 @@ function getOrCreateSheet(spreadsheet, sheetName) {
       // Store admin link when sheet is created
       // Admin link will be added separately through setup
     } else if (sheetName === 'Expenses') {
-      sheet.appendRow(['Date', 'Description', 'Amount', 'Paid By', 'Split Between', 'Status']);
+      sheet.appendRow(['Date', 'Description', 'Amount', 'Paid By', 'Split Between', 'Status', 'Submitted By', 'Submitted At', 'Approved/Rejected By', 'Approved/Rejected At']);
     } else if (sheetName === 'Settlements') {
       sheet.appendRow(['Settlement ID', 'From', 'To', 'Amount', 'Confirmed By', 'Confirmed At', 'Status']);
     }

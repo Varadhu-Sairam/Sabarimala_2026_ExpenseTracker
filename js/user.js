@@ -100,12 +100,12 @@ window.submitExpense = async function() {
             // Update existing expense
             result = await API.post('updateExpense', {
                 index: parseInt(form.dataset.editIndex),
-                expense: { date, description, amount, paidBy, splitBetween }
+                expense: { date, description, amount, paidBy, splitBetween, submittedBy: AppState.userName }
             });
         } else {
-            // Add new expense
+            // Add new expense - include who is submitting it
             result = await API.post('addExpense', {
-                expense: { date, description, amount, paidBy, splitBetween }
+                expense: { date, description, amount, paidBy, splitBetween, submittedBy: AppState.userName }
             });
         }
         
