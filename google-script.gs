@@ -236,8 +236,14 @@ function getExpenses(sheet, accessKey) {
       // Users only see approved expenses
       // Admin sees all expenses
       if (isAdmin || status === 'approved') {
+        // Format date as YYYY-MM-DD
+        const dateValue = data[i][0];
+        const formattedDate = dateValue instanceof Date ? 
+          Utilities.formatDate(dateValue, Session.getScriptTimeZone(), 'yyyy-MM-dd') : 
+          dateValue;
+        
         expenses.push({
-          date: data[i][0],
+          date: formattedDate,
           description: data[i][1],
           amount: data[i][2],
           paidBy: data[i][3],
@@ -269,9 +275,15 @@ function getPendingExpenses(sheet) {
       const status = data[i][5] || 'approved';
       
       if (status === 'pending') {
+        // Format date as YYYY-MM-DD for HTML date input
+        const dateValue = data[i][0];
+        const formattedDate = dateValue instanceof Date ? 
+          Utilities.formatDate(dateValue, Session.getScriptTimeZone(), 'yyyy-MM-dd') : 
+          dateValue;
+        
         pending.push({
           index: i - 1,  // 0-based index for the expense
-          date: data[i][0],
+          date: formattedDate,
           description: data[i][1],
           amount: data[i][2],
           paidBy: data[i][3],
@@ -326,9 +338,15 @@ function getMyExpenses(sheet, userName) {
   
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] && data[i][3] && data[i][3].toLowerCase() === userName.toLowerCase()) {
+      // Format date as YYYY-MM-DD for HTML date input
+      const dateValue = data[i][0];
+      const formattedDate = dateValue instanceof Date ? 
+        Utilities.formatDate(dateValue, Session.getScriptTimeZone(), 'yyyy-MM-dd') : 
+        dateValue;
+      
       myExpenses.push({
         index: i - 1,
-        date: data[i][0],
+        date: formattedDate,
         description: data[i][1],
         amount: data[i][2],
         paidBy: data[i][3],
