@@ -178,12 +178,27 @@
         let generatedAdminKey = '';
         let generatedUserKey = '';
         
-        // Generate random key
-        function generateRandomKey(length = 32) {
+        // Generate cryptographically secure random key with entropy from context
+        async function generateRandomKey(groupName, role, length = 32) {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            
+            // Gather entropy sources
+            const timestamp = Date.now();
+            const randomValues = crypto.getRandomValues(new Uint32Array(8));
+            const entropy = `${groupName}-${role}-${timestamp}-${Array.from(randomValues).join('-')}`;
+            
+            // Hash the entropy to create a seed
+            const encoder = new TextEncoder();
+            const data = encoder.encode(entropy);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = new Uint8Array(hashBuffer);
+            
+            // Generate key using crypto random + hash-based seed for additional uniqueness
             let key = '';
             for (let i = 0; i < length; i++) {
-                key += chars.charAt(Math.floor(Math.random() * chars.length));
+                // Mix crypto random with hash-based index for extra entropy
+                const randomIndex = (crypto.getRandomValues(new Uint8Array(1))[0] + hashArray[i % hashArray.length]) % chars.length;
+                key += chars.charAt(randomIndex);
             }
             return key;
         }
@@ -329,15 +344,25 @@
             });
         };
         
-        window.generateKeys = function() {
+        window.generateKeys = async function() {
             const adminName = document.getElementById('adminName').value.trim();
+            const groupName = document.getElementById('groupName').value.trim();
+            
             if (!adminName) {
                 showStatus('Please enter admin name first', 'error');
                 return;
             }
             
-            generatedAdminKey = generateRandomKey(32);
-            generatedUserKey = generateRandomKey(32);
+            if (!groupName) {
+                showStatus('Please enter group name first', 'error');
+                return;
+            }
+            
+            showStatus('Generating cryptographically secure keys...', 'info');
+            
+            // Generate unique keys with group name and timestamp entropy
+            generatedAdminKey = await generateRandomKey(groupName, 'admin', 32);
+            generatedUserKey = await generateRandomKey(groupName, 'user', 32);
             
             document.getElementById('adminKey').textContent = generatedAdminKey;
             document.getElementById('userKey').textContent = generatedUserKey;
