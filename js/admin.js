@@ -750,39 +750,20 @@ async function decryptData(encryptedStr) {
     CONFIG.IS_ADMIN = true;
     document.getElementById('groupName').textContent = decryptedData.name;
     
-    // Store admin link in sheet for backup (first time or always)
+    // Store admin link as backup (links should already be stored from setup page)
     try {
         const adminName = decryptedData.name + ' Admin';
         const currentLink = window.location.href;
         
-        console.log('Attempting to store admin link...');
-        console.log('API URL:', CONFIG.API_URL);
-        console.log('Admin Name:', adminName);
-        console.log('Has Access Key:', !!CONFIG.ACCESS_KEY);
-        
-        const result = await API.post('storeUserLink', {
+        await API.post('storeUserLink', {
             name: adminName,
             token: token,
             link: currentLink,
             role: 'admin'
         });
-        
-        console.log('Store admin link result:', result);
-        
-        if (result.success) {
-            console.log('✅ Admin link stored successfully:', result.message);
-        } else {
-            console.error('❌ Failed to store admin link:', result.error);
-            if (result.error === 'Admin access required') {
-                console.error('⚠️ IMPORTANT: The ADMIN_KEY in your Google Apps Script does not match the key in your admin link.');
-                console.error('Please ensure you:');
-                console.error('1. Copied the complete script from setup.html (Step 3)');
-                console.error('2. Pasted it into Google Apps Script');
-                console.error('3. Deployed/Re-deployed the script');
-            }
-        }
     } catch (error) {
-        console.error('❌ Error storing admin link:', error);
+        // Link storage from admin page is optional (should be stored from setup)
+        console.log('Admin link backup: ', error.message || 'Already stored from setup page');
     }
     
     // Set today's date

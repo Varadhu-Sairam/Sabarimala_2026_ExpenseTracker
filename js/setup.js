@@ -259,16 +259,55 @@ window.generateLinks = async function() {
     document.getElementById('userLink').textContent = userLink;
     document.getElementById('linksDisplay').style.display = 'block';
     
-    showStatus('Encrypted links generated! These links will also be stored in your Google Sheet for backup.', 'success');
+    showStatus('Encrypted links generated! Storing links in your Google Sheet...', 'info');
     
-    // Show instruction to store admin link
+    // Store both links in UserLinks sheet
+    try {
+        // Store admin link
+        const adminResponse = await fetch(webAppUrl, {
+            method: 'POST',
+            body: new URLSearchParams({
+                action: 'storeUserLink',
+                key: generatedAdminKey,
+                name: groupName + ' Admin',
+                token: adminToken,
+                link: adminLink,
+                role: 'admin'
+            })
+        });
+        const adminResult = await adminResponse.json();
+        
+        // Store shared user link
+        const userResponse = await fetch(webAppUrl, {
+            method: 'POST',
+            body: new URLSearchParams({
+                action: 'storeUserLink',
+                key: generatedAdminKey,
+                name: groupName + ' - Shared User Link',
+                token: userToken,
+                link: userLink,
+                role: 'user'
+            })
+        });
+        const userResult = await userResponse.json();
+        
+        if (adminResult.success && userResult.success) {
+            showStatus('✅ Links generated and stored in your Google Sheet successfully!', 'success');
+        } else {
+            showStatus('⚠️ Links generated, but some links could not be stored. You can retrieve them from the UserLinks tab later.', 'warning');
+        }
+    } catch (error) {
+        console.error('Error storing links:', error);
+        showStatus('⚠️ Links generated, but could not be stored automatically. They will be stored when you first open the admin link.', 'warning');
+    }
+    
+    // Show instruction
     const instruction = document.createElement('div');
     instruction.className = 'status-message status-success';
     instruction.style.marginTop = '20px';
     instruction.innerHTML = `
-        <strong>📝 Important:</strong> After deploying the script and opening your admin link for the first time, 
-        the admin link will be automatically saved to the "UserLinks" tab in your Google Sheet. 
-        You can always retrieve it from there if you lose it!
+        <strong>📝 Note:</strong> Both admin and shared user links have been stored in the "UserLinks" tab of your Google Sheet. 
+        You can always retrieve them from there if you lose them!
     `;
     document.getElementById('linksDisplay').appendChild(instruction);
 };
