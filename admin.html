@@ -481,37 +481,82 @@
             }
         }
 
+        // Decrypt function (same as setup.html)
+        async function decryptData(encryptedStr) {
+            try {
+                const base64 = encryptedStr
+                    .replace(/-/g, '+')
+                    .replace(/_/g, '/')
+                    .padEnd(encryptedStr.length + (4 - encryptedStr.length % 4) % 4, '=');
+                
+                const combined = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+                const salt = combined.slice(0, 16);
+                const iv = combined.slice(16, 28);
+                const encryptedData = combined.slice(28);
+                
+                const encoder = new TextEncoder();
+                const passphrase = 'Sabarimala2026ExpenseTracker';
+                const passphraseBuffer = encoder.encode(passphrase);
+                const keyMaterial = await crypto.subtle.importKey(
+                    'raw',
+                    passphraseBuffer,
+                    'PBKDF2',
+                    false,
+                    ['deriveBits', 'deriveKey']
+                );
+                
+                const key = await crypto.subtle.deriveKey(
+                    {
+                        name: 'PBKDF2',
+                        salt: salt,
+                        iterations: 100000,
+                        hash: 'SHA-256'
+                    },
+                    keyMaterial,
+                    { name: 'AES-GCM', length: 256 },
+                    false,
+                    ['decrypt']
+                );
+                
+                const decryptedBuffer = await crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: iv },
+                    key,
+                    encryptedData
+                );
+                
+                const decoder = new TextDecoder();
+                const decryptedStr = decoder.decode(decryptedBuffer);
+                return JSON.parse(decryptedStr);
+            } catch (error) {
+                console.error('Decryption failed:', error);
+                return null;
+            }
+        }
+
         // Initialize
         (async function init() {
-            // Parse URL to get access key
+            // Parse URL to get encrypted token
             const urlParams = new URLSearchParams(window.location.search);
-            const key = urlParams.get('key');
+            const token = urlParams.get('token');
             
-            if (!key) {
+            if (!token) {
                 document.getElementById('statusMessage').innerHTML = 
                     '<div class="status-message status-error">Invalid admin link. Please use the link generated during setup.</div>';
                 return;
             }
             
-            // Load group config
-            const groupConfig = localStorage.getItem('expenseGroupConfig');
-            if (!groupConfig) {
+            // Decrypt token
+            const decryptedData = await decryptData(token);
+            if (!decryptedData || !decryptedData.key || !decryptedData.apiUrl) {
                 document.getElementById('statusMessage').innerHTML = 
-                    '<div class="status-message status-error">Group configuration not found. Please run setup again.</div>';
+                    '<div class="status-message status-error">Invalid or corrupted admin link. Please generate a new one.</div>';
                 return;
             }
             
-            const group = JSON.parse(groupConfig);
-            if (!group.apiUrl) {
-                document.getElementById('statusMessage').innerHTML = 
-                    '<div class="status-message status-error">Invalid group configuration. Please run setup again.</div>';
-                return;
-            }
-            
-            CONFIG.API_URL = group.apiUrl;
-            CONFIG.ACCESS_KEY = key;
+            CONFIG.API_URL = decryptedData.apiUrl;
+            CONFIG.ACCESS_KEY = decryptedData.key;
             CONFIG.IS_ADMIN = true;
-            document.getElementById('groupName').textContent = group.name;
+            document.getElementById('groupName').textContent = decryptedData.name;
             
             // Set today's date
             document.getElementById('expenseDate').valueAsDate = new Date();

@@ -187,6 +187,115 @@
             return key;
         }
         
+        // Encryption utilities using Web Crypto API
+        async function encryptData(data) {
+            const encoder = new TextEncoder();
+            const dataStr = JSON.stringify(data);
+            const dataBuffer = encoder.encode(dataStr);
+            
+            // Generate a key from a passphrase (static for simplicity)
+            const passphrase = 'Sabarimala2026ExpenseTracker';
+            const passphraseBuffer = encoder.encode(passphrase);
+            const keyMaterial = await crypto.subtle.importKey(
+                'raw',
+                passphraseBuffer,
+                'PBKDF2',
+                false,
+                ['deriveBits', 'deriveKey']
+            );
+            
+            // Derive encryption key
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            const key = await crypto.subtle.deriveKey(
+                {
+                    name: 'PBKDF2',
+                    salt: salt,
+                    iterations: 100000,
+                    hash: 'SHA-256'
+                },
+                keyMaterial,
+                { name: 'AES-GCM', length: 256 },
+                false,
+                ['encrypt']
+            );
+            
+            // Encrypt data
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const encryptedBuffer = await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                dataBuffer
+            );
+            
+            // Combine salt + iv + encrypted data
+            const combined = new Uint8Array(salt.length + iv.length + encryptedBuffer.byteLength);
+            combined.set(salt, 0);
+            combined.set(iv, salt.length);
+            combined.set(new Uint8Array(encryptedBuffer), salt.length + iv.length);
+            
+            // Convert to base64url (URL-safe)
+            return btoa(String.fromCharCode(...combined))
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=/g, '');
+        }
+        
+        async function decryptData(encryptedStr) {
+            try {
+                // Convert from base64url to bytes
+                const base64 = encryptedStr
+                    .replace(/-/g, '+')
+                    .replace(/_/g, '/')
+                    .padEnd(encryptedStr.length + (4 - encryptedStr.length % 4) % 4, '=');
+                
+                const combined = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+                
+                // Extract salt, iv, and encrypted data
+                const salt = combined.slice(0, 16);
+                const iv = combined.slice(16, 28);
+                const encryptedData = combined.slice(28);
+                
+                // Derive key from passphrase
+                const encoder = new TextEncoder();
+                const passphrase = 'Sabarimala2026ExpenseTracker';
+                const passphraseBuffer = encoder.encode(passphrase);
+                const keyMaterial = await crypto.subtle.importKey(
+                    'raw',
+                    passphraseBuffer,
+                    'PBKDF2',
+                    false,
+                    ['deriveBits', 'deriveKey']
+                );
+                
+                const key = await crypto.subtle.deriveKey(
+                    {
+                        name: 'PBKDF2',
+                        salt: salt,
+                        iterations: 100000,
+                        hash: 'SHA-256'
+                    },
+                    keyMaterial,
+                    { name: 'AES-GCM', length: 256 },
+                    false,
+                    ['decrypt']
+                );
+                
+                // Decrypt
+                const decryptedBuffer = await crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: iv },
+                    key,
+                    encryptedData
+                );
+                
+                const decoder = new TextDecoder();
+                const decryptedStr = decoder.decode(decryptedBuffer);
+                return JSON.parse(decryptedStr);
+            } catch (error) {
+                console.error('Decryption failed:', error);
+                return null;
+            }
+        }
+        
         // Display Apps Script code with keys and admin name filled in
         function displayScriptCode() {
             const adminName = document.getElementById('adminName').value.trim() || 'Admin';
@@ -239,7 +348,7 @@
             showStatus('Keys generated! Script code is ready to copy below.', 'success');
         };
         
-        window.generateLinks = function() {
+        window.generateLinks = async function() {
             const groupName = document.getElementById('groupName').value.trim();
             const sheetUrl = document.getElementById('sheetUrl').value.trim();
             const webAppUrl = document.getElementById('webAppUrl').value.trim();
@@ -254,25 +363,37 @@
                 return;
             }
             
-            // Save group config to localStorage
-            const groupConfig = {
+            showStatus('Generating encrypted links...', 'info');
+            
+            // Encrypt admin data
+            const adminData = {
+                key: generatedAdminKey,
+                apiUrl: webAppUrl,
                 name: groupName,
-                sheetUrl: sheetUrl,
-                apiUrl: webAppUrl
+                isAdmin: true
             };
             
-            localStorage.setItem('expenseGroupConfig', JSON.stringify(groupConfig));
+            // Encrypt user data
+            const userData = {
+                key: generatedUserKey,
+                apiUrl: webAppUrl,
+                name: groupName,
+                isAdmin: false
+            };
+            
+            const adminToken = await encryptData(adminData);
+            const userToken = await encryptData(userData);
             
             // Generate links
             const baseUrl = window.location.origin + window.location.pathname.replace('setup.html', '');
-            const adminLink = `${baseUrl}admin.html?key=${encodeURIComponent(generatedAdminKey)}`;
-            const userLink = `${baseUrl}user.html?key=${encodeURIComponent(generatedUserKey)}`;
+            const adminLink = `${baseUrl}admin.html?token=${adminToken}`;
+            const userLink = `${baseUrl}user.html?token=${userToken}`;
             
             document.getElementById('adminLink').textContent = adminLink;
             document.getElementById('userLink').textContent = userLink;
             document.getElementById('linksDisplay').style.display = 'block';
             
-            showStatus('Links generated! Save them securely.', 'success');
+            showStatus('Encrypted links generated! Save them securely.', 'success');
         };
         
         window.copyToClipboard = function(elementId) {
