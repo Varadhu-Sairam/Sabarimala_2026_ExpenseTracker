@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sabarimala 2026 - Admin Dashboard</title>
     <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -524,9 +525,9 @@
                     encryptedData
                 );
                 
-                const decoder = new TextDecoder();
-                const decryptedStr = decoder.decode(decryptedBuffer);
-                return JSON.parse(decryptedStr);
+                // Decompress data using pako
+                const decompressed = pako.inflate(new Uint8Array(decryptedBuffer), { to: 'string' });
+                return JSON.parse(decompressed);
             } catch (error) {
                 console.error('Decryption failed:', error);
                 return null;
