@@ -441,6 +441,28 @@ textarea:focus {
     margin: 0 20px;
 }
 
+.settlement-debtor {
+    color: #dc3545;
+    font-weight: 700;
+    background: #ffe6e6;
+    padding: 4px 12px;
+    border-radius: 6px;
+}
+
+.settlement-creditor {
+    color: #28a745;
+    font-weight: 700;
+    background: #e6f9e6;
+    padding: 4px 12px;
+    border-radius: 6px;
+}
+
+.settlement-amount {
+    font-weight: 700;
+    color: #333;
+    font-size: 1.1em;
+}
+
 /* ==================== STATUS MESSAGES ==================== */
 
 .status-message {

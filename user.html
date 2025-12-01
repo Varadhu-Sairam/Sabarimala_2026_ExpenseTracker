@@ -250,7 +250,7 @@
                     balances[expense.paidBy] += expense.amount;
                 });
                 
-                // Simplify settlements
+                // Optimized settlement calculation - minimizes transactions
                 const settlements = [];
                 const creditors = [];
                 const debtors = [];
@@ -265,13 +265,14 @@
                     }
                 });
                 
+                // Sort by amount descending for optimal matching
                 creditors.sort((a, b) => b.amount - a.amount);
                 debtors.sort((a, b) => b.amount - a.amount);
                 
-                let i = 0, j = 0;
-                while (i < creditors.length && j < debtors.length) {
-                    const creditor = creditors[i];
-                    const debtor = debtors[j];
+                // Greedy algorithm: match largest debtor with largest creditor
+                while (creditors.length > 0 && debtors.length > 0) {
+                    const creditor = creditors[0];
+                    const debtor = debtors[0];
                     const amount = Math.min(creditor.amount, debtor.amount);
                     
                     settlements.push({
@@ -283,8 +284,9 @@
                     creditor.amount -= amount;
                     debtor.amount -= amount;
                     
-                    if (creditor.amount < 0.01) i++;
-                    if (debtor.amount < 0.01) j++;
+                    // Remove settled parties
+                    if (creditor.amount < 0.01) creditors.shift();
+                    if (debtor.amount < 0.01) debtors.shift();
                 }
                 
                 // Display settlements
@@ -302,9 +304,9 @@
                         return `
                             <div class="settlement-item">
                                 <div class="settlement-info">
-                                    <span class="settlement-from">${Utils.escapeHtml(s.from)}</span>
+                                    <span class="settlement-debtor">${Utils.escapeHtml(s.from)}</span>
                                     <span class="settlement-arrow">→</span>
-                                    <span class="settlement-to">${Utils.escapeHtml(s.to)}</span>
+                                    <span class="settlement-creditor">${Utils.escapeHtml(s.to)}</span>
                                     <span class="settlement-amount">₹${s.amount.toFixed(2)}</span>
                                 </div>
                                 <button class="btn btn-small" onclick="confirmSettlement('${Utils.escapeHtml(s.from)}', '${Utils.escapeHtml(s.to)}', ${s.amount})">
