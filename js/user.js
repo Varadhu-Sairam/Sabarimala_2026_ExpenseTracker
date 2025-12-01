@@ -105,7 +105,6 @@ window.submitExpense = async function() {
             }
             
             await loadExpenses();
-            await loadMyExpenses();
         } else {
             Utils.showStatus('Error: ' + (result.error || 'Failed to submit expense'), 'error');
         }

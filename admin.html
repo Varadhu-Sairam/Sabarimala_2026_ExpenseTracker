@@ -80,6 +80,13 @@
             <p class="note-text">
                 Access links for all users are stored here. You can retrieve and share them if users lose their links.
             </p>
+            
+            <div class="form-group">
+                <label>Add Shared User Link:</label>
+                <input type="text" id="sharedUserLink" placeholder="Paste the shared user link from setup page">
+                <button class="btn btn-primary btn-margin-top" onclick="addSharedUserLink()">➕ Add User Link</button>
+            </div>
+            
             <div id="userLinksList">
                 <!-- User links will be loaded here -->
             </div>

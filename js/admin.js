@@ -130,6 +130,44 @@ window.approveExpense = async function(index) {
     }
 };
 
+window.toggleEditMode = function(index) {
+    const item = document.getElementById(`pending-${index}`);
+    const isEditing = item.classList.contains('editing');
+    
+    if (isEditing) {
+        // Cancel edit - reload to reset
+        loadPendingExpenses();
+    } else {
+        // Enable edit mode
+        item.classList.add('editing');
+        item.querySelectorAll('input').forEach(input => input.disabled = false);
+        
+        // Update buttons
+        const actionsDiv = item.querySelector('.expense-actions');
+        actionsDiv.innerHTML = `
+            <button class="btn btn-primary btn-small" onclick="approveEditedExpense(${index})">✓ Save & Approve</button>
+            <button class="btn btn-secondary btn-small" onclick="toggleEditMode(${index})">✕ Cancel</button>
+            <button class="btn btn-danger btn-small" onclick="rejectExpense(${index})">🗑️ Reject</button>
+        `;
+    }
+};
+
+window.approveExpense = async function(index) {
+    try {
+        const result = await API.post('approveExpense', { index });
+        
+        if (result.success) {
+            Utils.showStatus('Expense approved!', 'success');
+            await loadPendingExpenses();
+            await loadExpenses();
+        } else {
+            Utils.showStatus('Error: ' + (result.error || 'Failed to approve expense'), 'error');
+        }
+    } catch (error) {
+        Utils.showStatus('Error approving expense', 'error');
+    }
+};
+
 window.approveEditedExpense = async function(index) {
     try {
         // Get edited values
@@ -285,6 +323,52 @@ async function loadPendingRegistrations() {
     }
 }
 
+window.addSharedUserLink = async function() {
+    const linkInput = document.getElementById('sharedUserLink');
+    const link = linkInput.value.trim();
+    
+    if (!link) {
+        Utils.showStatus('Please enter a user link', 'error');
+        return;
+    }
+    
+    if (!link.includes('user.html?token=')) {
+        Utils.showStatus('Invalid user link format', 'error');
+        return;
+    }
+    
+    try {
+        // Extract token from link
+        const urlParams = new URLSearchParams(link.split('?')[1]);
+        const token = urlParams.get('token');
+        
+        if (!token) {
+            Utils.showStatus('Could not extract token from link', 'error');
+            return;
+        }
+        
+        // Store link
+        const groupName = document.getElementById('groupName').textContent;
+        const result = await API.post('storeUserLink', {
+            name: groupName + ' - Shared User Link',
+            token: token,
+            link: link,
+            role: 'user'
+        });
+        
+        if (result.success) {
+            Utils.showStatus('User link added successfully!', 'success');
+            linkInput.value = '';
+            await loadUserLinks();
+        } else {
+            Utils.showStatus('Error: ' + (result.error || 'Failed to add link'), 'error');
+        }
+    } catch (error) {
+        Utils.showStatus('Error adding user link', 'error');
+        console.error(error);
+    }
+};
+
 async function loadUserLinks() {
     try {
         const data = await API.get('getUserLinks');
@@ -330,16 +414,17 @@ async function loadPendingExpenses() {
             listDiv.innerHTML = data.pending.map(expense => `
                 <div class="expense-item pending" id="pending-${expense.index}">
                     <div class="expense-header">
-                        <input type="text" class="edit-field" id="desc-${expense.index}" value="${Utils.escapeHtml(expense.description)}" />
-                        <input type="number" class="edit-field edit-amount" id="amt-${expense.index}" value="${expense.amount}" step="0.01" />
+                        <input type="text" class="edit-field" id="desc-${expense.index}" value="${Utils.escapeHtml(expense.description)}" disabled />
+                        <input type="number" class="edit-field edit-amount" id="amt-${expense.index}" value="${expense.amount}" step="0.01" disabled />
                     </div>
                     <div class="expense-details">
-                        <span>📅 <input type="date" class="edit-field edit-date" id="date-${expense.index}" value="${expense.date}" /></span>
-                        <span>👤 Paid by: <input type="text" class="edit-field" id="paidby-${expense.index}" value="${Utils.escapeHtml(expense.paidBy)}" /></span>
-                        <span>👥 Split: <input type="text" class="edit-field" id="split-${expense.index}" value="${expense.splitBetween.map(Utils.escapeHtml).join(', ')}" /></span>
+                        <span>📅 <input type="date" class="edit-field edit-date" id="date-${expense.index}" value="${expense.date}" disabled /></span>
+                        <span>👤 Paid by: <input type="text" class="edit-field" id="paidby-${expense.index}" value="${Utils.escapeHtml(expense.paidBy)}" disabled /></span>
+                        <span>👥 Split: <input type="text" class="edit-field" id="split-${expense.index}" value="${expense.splitBetween.map(Utils.escapeHtml).join(', ')}" disabled /></span>
                     </div>
                     <div class="expense-actions">
-                        <button class="btn btn-primary btn-small" onclick="approveEditedExpense(${expense.index})">✓ Save & Approve</button>
+                        <button class="btn btn-primary btn-small" onclick="approveExpense(${expense.index})">✓ Approve</button>
+                        <button class="btn btn-secondary btn-small" onclick="toggleEditMode(${expense.index})">✏️ Edit</button>
                         <button class="btn btn-danger btn-small" onclick="rejectExpense(${expense.index})">🗑️ Reject</button>
                     </div>
                 </div>
