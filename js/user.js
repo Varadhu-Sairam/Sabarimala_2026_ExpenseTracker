@@ -18,6 +18,26 @@ window.registerUser = async function() {
     }
     
     try {
+        // Check if user already exists as a participant
+        const participantsData = await API.get('getParticipants');
+        if (participantsData.success && participantsData.participants.includes(name)) {
+            document.getElementById('registrationStatus').innerHTML = 
+                '<div class="status-message status-info">✓ You are already registered! Please contact the admin to get your personalized access link.</div>';
+            return;
+        }
+        
+        // Check if registration already pending
+        const registrationsData = await API.get('getPendingRegistrations');
+        if (registrationsData.success) {
+            const pendingNames = registrationsData.registrations.map(r => r.name);
+            if (pendingNames.includes(name)) {
+                document.getElementById('registrationStatus').innerHTML = 
+                    '<div class="status-message status-info">⏳ Your registration is already pending approval. Please wait for admin to approve.</div>';
+                return;
+            }
+        }
+        
+        // Submit new registration
         const result = await API.post('registerUser', { name: name });
         
         if (result.success) {
