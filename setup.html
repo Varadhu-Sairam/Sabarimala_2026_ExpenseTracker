@@ -78,46 +78,15 @@
             </div>
         </div>
 
-        <!-- Step 2: Deploy Apps Script -->
+        <!-- Step 2: Generate Access Keys -->
         <div class="setup-step">
-            <h3>Step 2: Deploy Google Apps Script</h3>
-            <p>1. Open your Google Sheet and go to <strong>Extensions → Apps Script</strong></p>
-            <p>2. Delete any existing code and paste this:</p>
-            
-            <button class="btn btn-primary" onclick="copyScriptCode()" style="margin: 10px 0;">📋 Copy Apps Script Code</button>
-            
-            <div class="code-block" id="scriptCode" style="max-height: 300px; overflow-y: auto;">
-                <!-- Script will be inserted here -->
-            </div>
-            
-            <div class="warning" style="margin: 15px 0;">
-                <strong>⚠️ Note:</strong> Don't worry about the <code>GENERATE_RANDOM_KEY_HERE</code> placeholders yet. You'll update them in Step 3 after generating the keys.
-            </div>
-            
-            <p>3. Click <strong>Deploy → New deployment</strong></p>
-            <p>4. Select type: <strong>Web app</strong></p>
-            <p>5. Set:</p>
-            <ul>
-                <li><strong>Execute as:</strong> Me</li>
-                <li><strong>Who has access:</strong> Anyone</li>
-            </ul>
-            <p>6. Click <strong>Deploy</strong> and copy the Web App URL</p>
-            
-            <div class="form-group" style="margin-top: 20px;">
-                <label>Web App URL:</label>
-                <input type="text" id="webAppUrl" placeholder="https://script.google.com/macros/s/...">
-            </div>
-        </div>
-
-        <!-- Step 3: Generate Access Keys -->
-        <div class="setup-step">
-            <h3>Step 3: Generate Access Keys</h3>
+            <h3>Step 2: Generate Access Keys</h3>
             <p>Click the button below to generate secure random keys:</p>
             <button class="btn btn-primary" onclick="generateKeys()">🔐 Generate Keys</button>
             
             <div id="keysDisplay" style="display: none; margin-top: 20px;">
                 <div class="warning">
-                    <strong>⚠️ Important:</strong> Copy these keys now! You'll need to paste them into your Apps Script.
+                    <strong>✓ Keys Generated!</strong> These will be automatically included in your Apps Script code below.
                 </div>
                 
                 <div style="margin: 15px 0;">
@@ -131,14 +100,40 @@
                     <div class="key-display" id="userKey"></div>
                     <button class="btn btn-small" onclick="copyToClipboard('userKey')">📋 Copy</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Deploy Apps Script -->
+        <div class="setup-step">
+            <h3>Step 3: Deploy Google Apps Script</h3>
+            
+            <div id="scriptSection" style="display: none;">
+                <p>1. Open your Google Sheet and go to <strong>Extensions → Apps Script</strong></p>
+                <p>2. Delete any existing code and paste this (keys are already filled in!):</p>
                 
-                <p style="margin-top: 20px;"><strong>Now update your Apps Script:</strong></p>
-                <ol>
-                    <li>Go back to your Apps Script editor</li>
-                    <li>Find the lines:<br><code style="background: #f5f5f5; padding: 2px 6px;">const ADMIN_KEY = 'GENERATE_RANDOM_KEY_HERE';</code></li>
-                    <li>Replace them with your generated keys above</li>
-                    <li>Click <strong>Deploy → Manage deployments → Edit → New version → Deploy</strong></li>
-                </ol>
+                <button class="btn btn-primary" onclick="copyScriptCode()" style="margin: 10px 0;">📋 Copy Apps Script Code</button>
+                
+                <div class="code-block" id="scriptCode" style="max-height: 300px; overflow-y: auto;">
+                    <!-- Script will be inserted here -->
+                </div>
+                
+                <p>3. Click <strong>Deploy → New deployment</strong></p>
+                <p>4. Select type: <strong>Web app</strong></p>
+                <p>5. Set:</p>
+                <ul>
+                    <li><strong>Execute as:</strong> Me</li>
+                    <li><strong>Who has access:</strong> Anyone</li>
+                </ul>
+                <p>6. Click <strong>Deploy</strong> and copy the Web App URL</p>
+                
+                <div class="form-group" style="margin-top: 20px;">
+                    <label>Web App URL:</label>
+                    <input type="text" id="webAppUrl" placeholder="https://script.google.com/macros/s/...">
+                </div>
+            </div>
+            
+            <div id="scriptPlaceholder" style="padding: 20px; background: #f5f5f5; border-radius: 8px; text-align: center; color: #666;">
+                ⬆️ Generate keys in Step 2 first to see the script code
             </div>
         </div>
 
@@ -186,11 +181,18 @@
             return key;
         }
         
-        // Display Apps Script code
+        // Display Apps Script code with keys filled in
         function displayScriptCode() {
             fetch('google-script.gs')
                 .then(r => r.text())
                 .then(code => {
+                    // Replace placeholders with actual keys
+                    if (generatedAdminKey && generatedUserKey) {
+                        code = code.replace("const ADMIN_KEY = 'GENERATE_RANDOM_KEY_HERE';", 
+                                          `const ADMIN_KEY = '${generatedAdminKey}';`);
+                        code = code.replace("const USER_KEY = 'GENERATE_RANDOM_KEY_HERE';", 
+                                          `const USER_KEY = '${generatedUserKey}';`);
+                    }
                     document.getElementById('scriptCode').textContent = code;
                 })
                 .catch(() => {
@@ -214,7 +216,12 @@
             document.getElementById('userKey').textContent = generatedUserKey;
             document.getElementById('keysDisplay').style.display = 'block';
             
-            showStatus('Keys generated! Copy them and update your Apps Script.', 'success');
+            // Show script section and load code with keys
+            document.getElementById('scriptPlaceholder').style.display = 'none';
+            document.getElementById('scriptSection').style.display = 'block';
+            displayScriptCode();
+            
+            showStatus('Keys generated! Script code is ready to copy below.', 'success');
         };
         
         window.generateLinks = function() {
@@ -228,7 +235,7 @@
             }
             
             if (!generatedAdminKey || !generatedUserKey) {
-                showStatus('Please generate keys first (Step 3)', 'error');
+                showStatus('Please generate keys first (Step 2)', 'error');
                 return;
             }
             
@@ -245,7 +252,7 @@
             localStorage.setItem('expenseGroups', JSON.stringify(groups));
             
             // Generate links
-            const baseUrl = window.location.origin + window.location.pathname.replace('setup-simple.html', '');
+            const baseUrl = window.location.origin + window.location.pathname.replace('setup.html', '');
             const adminLink = `${baseUrl}admin.html?key=${encodeURIComponent(generatedAdminKey)}&group=${encodeURIComponent(groupId)}`;
             const userLink = `${baseUrl}user.html?key=${encodeURIComponent(generatedUserKey)}&group=${encodeURIComponent(groupId)}`;
             
@@ -279,8 +286,7 @@
             }, 5000);
         }
         
-        // Initialize
-        displayScriptCode();
+        // Initialize - don't load script until keys are generated
     </script>
 </body>
 </html>
