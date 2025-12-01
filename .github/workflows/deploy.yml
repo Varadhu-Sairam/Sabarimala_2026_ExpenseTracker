@@ -26,7 +26,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # No API URL injection - admin provides it via modal after deployment
+      # Static site - no build step needed
+      # Access keys and API URLs are in the generated links from setup.html
         
       - name: Setup Pages
         uses: actions/configure-pages@v4
