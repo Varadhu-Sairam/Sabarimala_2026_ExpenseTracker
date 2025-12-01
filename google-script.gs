@@ -46,6 +46,24 @@ function doGet(e) {
       return getPendingExpenses(sheet);
     } else if (action === 'getSettlementConfirmations') {
       return getSettlementConfirmations(sheet);
+    } else if (action === 'getPendingRegistrations') {
+      // Admin only
+      if (accessKey !== ADMIN_KEY) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          error: 'Admin access required'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      return getPendingRegistrations(sheet);
+    } else if (action === 'getUserLinks') {
+      // Admin only
+      if (accessKey !== ADMIN_KEY) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          error: 'Admin access required'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      return getUserLinks(sheet);
     }
     
     return ContentService.createTextOutput(JSON.stringify({
@@ -93,7 +111,8 @@ function doPost(e) {
     
     // Admin-only actions
     if (data.action === 'approveExpense' || data.action === 'rejectExpense' ||
-        data.action === 'addParticipant' || data.action === 'removeParticipant') {
+        data.action === 'addParticipant' || data.action === 'removeParticipant' ||
+        data.action === 'approveRegistration' || data.action === 'rejectRegistration') {
       
       if (!isAdmin) {
         return ContentService.createTextOutput(JSON.stringify({
@@ -110,11 +129,28 @@ function doPost(e) {
         return addParticipant(sheet, data.name);
       } else if (data.action === 'removeParticipant') {
         return removeParticipant(sheet, data.name);
+      } else if (data.action === 'approveRegistration') {
+        return approveRegistration(sheet, data);
+      } else if (data.action === 'rejectRegistration') {
+        return rejectRegistration(sheet, data);
+      } else if (data.action === 'storeUserLink') {
+        return storeUserLink(sheet, data);
       }
     }
     
     // User actions (both admin and user can do these)
-    if (data.action === 'addExpense') {
+    if (data.action === 'registerUser') {
+      return registerUser(sheet, data);
+    } else if (data.action === 'addExpense') {
+      // Admin only
+      if (!isAdmin) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          error: 'Admin access required'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      return storeUserLink(sheet, data);
+    } else if (data.action === 'addExpense') {
       return addExpense(sheet, data.expense, isAdmin);
     } else if (data.action === 'confirmSettlement') {
       return confirmSettlement(sheet, data);
@@ -325,6 +361,12 @@ function getOrCreateSheet(spreadsheet, sheetName) {
     if (sheetName === 'Participants') {
       sheet.appendRow(['Name']);
       sheet.appendRow([ADMIN_NAME]); // Add admin as default participant
+    } else if (sheetName === 'Registrations') {
+      sheet.appendRow(['Name', 'Requested At', 'Status']);
+    } else if (sheetName === 'UserLinks') {
+      sheet.appendRow(['Name', 'Token', 'Link', 'Created At', 'Role']);
+      // Store admin link when sheet is created
+      // Admin link will be added separately through setup
     } else if (sheetName === 'Expenses') {
       sheet.appendRow(['Date', 'Description', 'Amount', 'Paid By', 'Split Between', 'Status']);
     } else if (sheetName === 'Settlements') {
@@ -333,4 +375,234 @@ function getOrCreateSheet(spreadsheet, sheetName) {
   }
   
   return sheet;
+}
+
+function registerUser(sheet, data) {
+  const registrationsSheet = getOrCreateSheet(sheet, 'Registrations');
+  const participantsSheet = getOrCreateSheet(sheet, 'Participants');
+  const name = data.name;
+  
+  if (!name) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: 'Name is required'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  // Check if already a participant
+  const participants = participantsSheet.getDataRange().getValues();
+  for (let i = 1; i < participants.length; i++) {
+    if (participants[i][0] === name) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'You are already registered'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  
+  // Check if already requested
+  const registrations = registrationsSheet.getDataRange().getValues();
+  for (let i = 1; i < registrations.length; i++) {
+    if (registrations[i][0] === name && registrations[i][2] === 'Pending') {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'Registration request already pending approval'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  
+  registrationsSheet.appendRow([name, new Date(), 'Pending']);
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    message: 'Registration request submitted. Please wait for admin approval.'
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function getPendingRegistrations(sheet) {
+  const registrationsSheet = getOrCreateSheet(sheet, 'Registrations');
+  const data = registrationsSheet.getDataRange().getValues();
+  
+  const pending = [];
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][2] === 'Pending') {
+      pending.push({
+        name: data[i][0],
+        requestedAt: data[i][1],
+        rowIndex: i + 1
+      });
+    }
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    registrations: pending
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function approveRegistration(sheet, data) {
+  const registrationsSheet = getOrCreateSheet(sheet, 'Registrations');
+  const participantsSheet = getOrCreateSheet(sheet, 'Participants');
+  const name = data.name;
+  
+  // Find registration
+  const registrations = registrationsSheet.getDataRange().getValues();
+  for (let i = 1; i < registrations.length; i++) {
+    if (registrations[i][0] === name && registrations[i][2] === 'Pending') {
+      // Update status
+      registrationsSheet.getRange(i + 1, 3).setValue('Approved');
+      
+      // Add to participants
+      participantsSheet.appendRow([name]);
+      
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: 'Registration approved'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: false,
+    error: 'Registration not found'
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function rejectRegistration(sheet, data) {
+  const registrationsSheet = getOrCreateSheet(sheet, 'Registrations');
+  const name = data.name;
+  
+  // Find registration
+  const registrations = registrationsSheet.getDataRange().getValues();
+  for (let i = 1; i < registrations.length; i++) {
+    if (registrations[i][0] === name && registrations[i][2] === 'Pending') {
+      // Update status
+      registrationsSheet.getRange(i + 1, 3).setValue('Rejected');
+      
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: 'Registration rejected'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: false,
+    error: 'Registration not found'
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function registerUser(sheet, data) {
+  const registrationsSheet = getOrCreateSheet(sheet, 'Registrations');
+  const participantsSheet = getOrCreateSheet(sheet, 'Participants');
+  const name = data.name;
+  
+  if (!name) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: 'Name is required'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  // Check if already a participant
+  const participants = participantsSheet.getDataRange().getValues();
+  for (let i = 1; i < participants.length; i++) {
+    if (participants[i][0] === name) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'You are already registered'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  
+  // Check if already requested
+  const registrations = registrationsSheet.getDataRange().getValues();
+  for (let i = 1; i < registrations.length; i++) {
+    if (registrations[i][0] === name && registrations[i][2] === 'Pending') {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'Registration request already pending approval'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  
+  registrationsSheet.appendRow([name, new Date(), 'Pending']);
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    message: 'Registration request submitted. Please wait for admin approval.'
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function getPendingRegistrations(sheet) {
+  const registrationsSheet = getOrCreateSheet(sheet, 'Registrations');
+  const data = registrationsSheet.getDataRange().getValues();
+  
+  const pending = [];
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][2] === 'Pending') {
+      pending.push({
+        name: data[i][0],
+        requestedAt: data[i][1],
+        rowIndex: i + 1
+      });
+    }
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    registrations: pending
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function approveRegistration(sheet, data) {
+  const registrationsSheet = getOrCreateSheet(sheet, 'Registrations');
+  const participantsSheet = getOrCreateSheet(sheet, 'Participants');
+  const name = data.name;
+  
+  // Find registration
+  const registrations = registrationsSheet.getDataRange().getValues();
+  for (let i = 1; i < registrations.length; i++) {
+    if (registrations[i][0] === name && registrations[i][2] === 'Pending') {
+      // Update status
+      registrationsSheet.getRange(i + 1, 3).setValue('Approved');
+      
+      // Add to participants
+      participantsSheet.appendRow([name]);
+      
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: 'Registration approved'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: false,
+    error: 'Registration not found'
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function rejectRegistration(sheet, data) {
+  const registrationsSheet = getOrCreateSheet(sheet, 'Registrations');
+  const name = data.name;
+  
+  // Find registration
+  const registrations = registrationsSheet.getDataRange().getValues();
+  for (let i = 1; i < registrations.length; i++) {
+    if (registrations[i][0] === name && registrations[i][2] === 'Pending') {
+      // Update status
+      registrationsSheet.getRange(i + 1, 3).setValue('Rejected');
+      
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: 'Registration rejected'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: false,
+    error: 'Registration not found'
+  })).setMimeType(ContentService.MimeType.JSON);
 }

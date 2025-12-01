@@ -17,13 +17,32 @@
 
         <div id="statusMessage"></div>
 
-        <div class="tabs">
-            <button class="tab active" onclick="switchTab('expenses')">💰 Submit Expense</button>
-            <button class="tab" onclick="switchTab('settlements')">🧮 Settlements</button>
+        <div id="registrationSection" style="display:none;">
+            <div class="tab-content active">
+                <h2>Register to Participate</h2>
+                <p style="color: #666; margin-bottom: 20px;">
+                    Please enter your name to register. Admin will approve your registration before you can submit expenses.
+                </p>
+                
+                <div class="form-group">
+                    <label>Your Name:</label>
+                    <input type="text" id="registrationName" placeholder="Enter your full name">
+                </div>
+                
+                <button class="btn btn-primary" onclick="registerUser()">📝 Register</button>
+                
+                <div id="registrationStatus" style="margin-top: 20px;"></div>
+            </div>
         </div>
 
-        <!-- Expenses Tab -->
-        <div id="expenses" class="tab-content active">
+        <div id="mainContent" style="display:none;">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('expenses')">💰 Submit Expense</button>
+                <button class="tab" onclick="switchTab('settlements')">🧮 Settlements</button>
+            </div>
+
+            <!-- Expenses Tab -->
+            <div id="expenses" class="tab-content active">
             <h2>Submit New Expense</h2>
             <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
                 Note: Your expense will be pending approval by the admin before being added to the calculations.
@@ -84,6 +103,7 @@
                 </div>
             </div>
         </div>
+        </div>
     </div>
 
     <script type="module">
@@ -91,6 +111,32 @@
         import { API } from './js/api.js';
 
         // Global functions for button handlers
+        window.registerUser = async function() {
+            const name = document.getElementById('registrationName').value.trim();
+            
+            if (!name) {
+                document.getElementById('registrationStatus').innerHTML = 
+                    '<div class="status-message status-error">Please enter your name</div>';
+                return;
+            }
+            
+            try {
+                const result = await API.post('registerUser', { name: name });
+                
+                if (result.success) {
+                    document.getElementById('registrationStatus').innerHTML = 
+                        '<div class="status-message status-success">' + result.message + '</div>';
+                    document.getElementById('registrationName').value = '';
+                } else {
+                    document.getElementById('registrationStatus').innerHTML = 
+                        '<div class="status-message status-error">' + result.error + '</div>';
+                }
+            } catch (error) {
+                document.getElementById('registrationStatus').innerHTML = 
+                    '<div class="status-message status-error">Error submitting registration: ' + error.message + '</div>';
+            }
+        };
+
         window.switchTab = function(tabName) {
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -419,10 +465,23 @@
             // Set today's date
             document.getElementById('expenseDate').valueAsDate = new Date();
             
-            // Load data
-            await loadParticipants();
-            await loadExpenses();
-            await loadSettlements();
+            // Load participants and check if user needs to register
+            const participantsData = await API.get('getParticipants');
+            if (participantsData.success) {
+                AppState.participants = participantsData.participants;
+                
+                // Check if this is first time - show registration
+                if (participantsData.participants.length <= 1) {
+                    // Only admin exists, show registration
+                    document.getElementById('registrationSection').style.display = 'block';
+                } else {
+                    // Show main content
+                    document.getElementById('mainContent').style.display = 'block';
+                    await loadParticipants();
+                    await loadExpenses();
+                    await loadSettlements();
+                }
+            }
         })();
     </script>
 </body>

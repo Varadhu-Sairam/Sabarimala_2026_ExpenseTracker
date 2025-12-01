@@ -421,7 +421,18 @@
             document.getElementById('userLink').textContent = userLink;
             document.getElementById('linksDisplay').style.display = 'block';
             
-            showStatus('Encrypted links generated! Save them securely.', 'success');
+            showStatus('Encrypted links generated! These links will also be stored in your Google Sheet for backup.', 'success');
+            
+            // Show instruction to store admin link
+            const instruction = document.createElement('div');
+            instruction.className = 'status-message status-success';
+            instruction.style.marginTop = '20px';
+            instruction.innerHTML = `
+                <strong>📝 Important:</strong> After deploying the script and opening your admin link for the first time, 
+                the admin link will be automatically saved to the "UserLinks" tab in your Google Sheet. 
+                You can always retrieve it from there if you lose it!
+            `;
+            document.getElementById('linksDisplay').appendChild(instruction);
         };
         
         window.copyToClipboard = function(elementId) {

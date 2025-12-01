@@ -19,7 +19,9 @@
 
         <div class="tabs">
             <button class="tab active" onclick="switchTab('pending')">⏳ Pending Approvals</button>
+            <button class="tab" onclick="switchTab('registrations')">📝 Registration Requests</button>
             <button class="tab" onclick="switchTab('participants')">👥 Participants</button>
+            <button class="tab" onclick="switchTab('links')">🔗 User Links</button>
             <button class="tab" onclick="switchTab('expenses')">💰 Expenses</button>
             <button class="tab" onclick="switchTab('settlements')">🧮 Settlements</button>
         </div>
@@ -29,6 +31,28 @@
             <h2>Pending Expense Approvals</h2>
             <div id="pendingList">
                 <!-- Pending expenses will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Registration Requests Tab -->
+        <div id="registrations" class="tab-content">
+            <h2>Registration Requests</h2>
+            <p style="color: #666; margin-bottom: 20px;">
+                Users who want to join the group will appear here. Approve or reject their registration requests.
+            </p>
+            <div id="registrationList">
+                <!-- Registration requests will be loaded here -->
+            </div>
+        </div>
+
+        <!-- User Links Tab -->
+        <div id="links" class="tab-content">
+            <h2>All User Links</h2>
+            <p style="color: #666; margin-bottom: 20px;">
+                Access links for all users are stored here. You can retrieve and share them if users lose their links.
+            </p>
+            <div id="userLinksList">
+                <!-- User links will be loaded here -->
             </div>
         </div>
 
@@ -253,6 +277,98 @@
             } catch (error) {
                 Utils.showStatus('Error confirming settlement', 'error');
             }
+        };
+
+        window.approveRegistration = async function(name) {
+            try {
+                Utils.showStatus('Approving and generating user link...', 'info');
+                const result = await API.post('approveRegistration', { name: name });
+                
+                if (result.success) {
+                    Utils.showStatus(`Registration approved for ${name}!`, 'success');
+                    await loadPendingRegistrations();
+                    await loadParticipants();
+                } else {
+                    Utils.showStatus('Error: ' + (result.error || 'Failed to approve registration'), 'error');
+                }
+            } catch (error) {
+                Utils.showStatus('Error approving registration', 'error');
+            }
+        };
+
+        window.rejectRegistration = async function(name) {
+            if (!confirm(`Reject registration request from ${name}?`)) return;
+            try {
+                const result = await API.post('rejectRegistration', { name: name });
+                if (result.success) {
+                    Utils.showStatus('Registration rejected', 'success');
+                    await loadPendingRegistrations();
+                } else {
+                    Utils.showStatus('Error: ' + (result.error || 'Failed to reject registration'), 'error');
+                }
+            } catch (error) {
+                Utils.showStatus('Error rejecting registration', 'error');
+            }
+        };
+
+        async function loadPendingRegistrations() {
+            try {
+                const data = await API.get('getPendingRegistrations');
+                if (data.success) {
+                    const listDiv = document.getElementById('registrationList');
+                    if (data.registrations.length === 0) {
+                        listDiv.innerHTML = '<p>No pending registration requests. 🎉</p>';
+                        return;
+                    }
+                    listDiv.innerHTML = data.registrations.map(reg => `
+                        <div class="expense-item">
+                            <div class="expense-info">
+                                <div><strong>${Utils.escapeHtml(reg.name)}</strong></div>
+                                <div style="color: #666; font-size: 0.9em;">Requested: ${new Date(reg.requestedAt).toLocaleString()}</div>
+                            </div>
+                            <div class="expense-actions">
+                                <button class="btn btn-success btn-small" onclick="approveRegistration('${Utils.escapeHtml(reg.name)}')">✅ Approve</button>
+                                <button class="btn btn-danger btn-small" onclick="rejectRegistration('${Utils.escapeHtml(reg.name)}')">❌ Reject</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading registrations:', error);
+            }
+        }
+
+        async function loadUserLinks() {
+            try {
+                const data = await API.get('getUserLinks');
+                if (data.success) {
+                    const listDiv = document.getElementById('userLinksList');
+                    if (data.links.length === 0) {
+                        listDiv.innerHTML = '<p>No user links stored yet.</p>';
+                        return;
+                    }
+                    listDiv.innerHTML = data.links.map(link => `
+                        <div class="expense-item">
+                            <div class="expense-info">
+                                <div><strong>${Utils.escapeHtml(link.name)}</strong> <span style="background: ${link.role === 'admin' ? '#ff6b6b' : '#4CAF50'}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.8em;">${link.role.toUpperCase()}</span></div>
+                                <div style="color: #666; font-size: 0.85em; word-break: break-all; margin-top: 5px;">${Utils.escapeHtml(link.link)}</div>
+                                <div style="color: #999; font-size: 0.8em; margin-top: 3px;">Created: ${new Date(link.createdAt).toLocaleString()}</div>
+                            </div>
+                            <div class="expense-actions">
+                                <button class="btn btn-primary btn-small" onclick="copyLinkToClipboard('${Utils.escapeHtml(link.link)}')">📋 Copy</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading user links:', error);
+            }
+        }
+
+        window.copyLinkToClipboard = function(link) {
+            navigator.clipboard.writeText(link).then(() => {
+                Utils.showStatus('Link copied to clipboard!', 'success');
+            });
         };
 
         async function loadPendingExpenses() {
@@ -568,12 +684,28 @@
             CONFIG.IS_ADMIN = true;
             document.getElementById('groupName').textContent = decryptedData.name;
             
+            // Store admin link in sheet for backup (first time or always)
+            try {
+                const adminName = document.getElementById('groupName').textContent + ' Admin';
+                const currentLink = window.location.href;
+                await API.post('storeUserLink', {
+                    name: adminName,
+                    token: token,
+                    link: currentLink,
+                    role: 'admin'
+                });
+            } catch (error) {
+                console.log('Note: Could not store admin link (may already exist)');
+            }
+            
             // Set today's date
             document.getElementById('expenseDate').valueAsDate = new Date();
             
             // Load data
             await loadPendingExpenses();
+            await loadPendingRegistrations();
             await loadParticipants();
+            await loadUserLinks();
             await loadExpenses();
             await loadSettlements();
         })();
