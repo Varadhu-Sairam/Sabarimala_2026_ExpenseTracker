@@ -795,3 +795,51 @@ textarea:focus {
     align-items: center;
     gap: 8px;
 }
+
+/* ==================== UTILITY CLASSES ==================== */
+
+.hidden {
+    display: none !important;
+}
+
+.group-name {
+    font-size: 14px;
+    color: #666;
+}
+
+.note-text {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.section-margin-top {
+    margin-top: 40px;
+}
+
+.status-container {
+    margin-top: 20px;
+}
+
+/* ==================== CHECKBOX CONTROLS ==================== */
+
+.checkbox-controls {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+    padding: 5px 0;
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: #667eea;
+    cursor: pointer;
+    font-size: 14px;
+    text-decoration: underline;
+    padding: 0;
+}
+
+.btn-link:hover {
+    color: #5568d3;
+}
