@@ -356,81 +356,27 @@ window.editExpense = async function(index) {
 
 async function loadSettlements() {
     try {
-        const [expensesData, confirmationsData] = await Promise.all([
-            API.get('getExpenses'),
+        // Calculate settlements on backend and get results
+        const [settlementsData, confirmationsData] = await Promise.all([
+            API.get('calculateSettlements'),
             API.get('getSettlementConfirmations')
         ]);
         
-        if (!expensesData.success) return;
-        
-        const confirmations = confirmationsData.success ? confirmationsData.confirmations : {};
-        
-        // Calculate settlements
-        const balances = {};
-        
-        expensesData.expenses.forEach(expense => {
-            const share = expense.amount / expense.splitBetween.length;
-            
-            expense.splitBetween.forEach(person => {
-                if (!balances[person]) balances[person] = 0;
-                balances[person] -= share;
-            });
-            
-            if (!balances[expense.paidBy]) balances[expense.paidBy] = 0;
-            balances[expense.paidBy] += expense.amount;
-        });
-        
-        // Optimized settlement calculation - minimizes transactions
-        const settlements = [];
-        const creditors = [];
-        const debtors = [];
-        
-        Object.entries(balances).forEach(([person, balance]) => {
-            if (Math.abs(balance) < 0.01) return;
-            
-            if (balance > 0) {
-                creditors.push({ person, amount: balance });
-            } else {
-                debtors.push({ person, amount: -balance });
-            }
-        });
-        
-        // Sort by amount descending for optimal matching
-        creditors.sort((a, b) => b.amount - a.amount);
-        debtors.sort((a, b) => b.amount - a.amount);
-        
-        // Greedy algorithm: match largest debtor with largest creditor
-        while (creditors.length > 0 && debtors.length > 0) {
-            const creditor = creditors[0];
-            const debtor = debtors[0];
-            const amount = Math.min(creditor.amount, debtor.amount);
-            
-            settlements.push({
-                from: debtor.person,
-                to: creditor.person,
-                amount: amount
-            });
-            
-            creditor.amount -= amount;
-            debtor.amount -= amount;
-            
-            // Remove settled parties
-            if (creditor.amount < 0.01) creditors.shift();
-            if (debtor.amount < 0.01) debtors.shift();
+        if (!settlementsData.success) {
+            Utils.showStatus('Failed to load settlements', 'error');
+            return;
         }
         
-        // Display settlements
+        const settlements = settlementsData.pendingSettlements || [];
+        const confirmations = confirmationsData.success ? confirmationsData.confirmations : {};
+        
+        // Display pending settlements
         const listDiv = document.getElementById('settlementList');
         
         if (settlements.length === 0) {
             listDiv.innerHTML = '<p>All settled up! 🎉</p>';
         } else {
             listDiv.innerHTML = settlements.map(s => {
-                const settlementId = `${s.from}-${s.to}`;
-                const isConfirmed = confirmations[settlementId];
-                
-                if (isConfirmed) return '';
-                
                 return `
                     <div class="settlement-item">
                         <div class="settlement-info">

@@ -46,6 +46,8 @@ function doGet(e) {
       return getPendingExpenses(sheet);
     } else if (action === 'getSettlementConfirmations') {
       return getSettlementConfirmations(sheet);
+    } else if (action === 'calculateSettlements') {
+      return calculateAndStoreSettlements(sheet);
     } else if (action === 'getMyExpenses') {
       // Get expenses for specific user
       const userName = e.parameter.userName;
@@ -380,34 +382,172 @@ function getSettlementConfirmations(sheet) {
   const data = settlementsSheet.getDataRange().getValues();
   
   const confirmations = {};
+  const pendingSettlements = [];
+  
   for (let i = 1; i < data.length; i++) {
     if (data[i][0]) {
-      confirmations[data[i][0]] = {
-        from: data[i][1],
-        to: data[i][2],
-        amount: data[i][3],
-        confirmedBy: data[i][4],
-        confirmedAt: data[i][5]
-      };
+      const settlementId = data[i][0];
+      const status = data[i][6] || 'Pending';
+      
+      if (status === 'Confirmed') {
+        confirmations[settlementId] = {
+          from: data[i][1],
+          to: data[i][2],
+          amount: data[i][3],
+          confirmedBy: data[i][4],
+          confirmedAt: data[i][5]
+        };
+      } else {
+        pendingSettlements.push({
+          settlementId: settlementId,
+          from: data[i][1],
+          to: data[i][2],
+          amount: data[i][3]
+        });
+      }
     }
   }
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
-    confirmations: confirmations
+    confirmations: confirmations,
+    pendingSettlements: pendingSettlements
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function calculateAndStoreSettlements(sheet) {
+  const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
+  const settlementsSheet = getOrCreateSheet(sheet, 'Settlements');
+  
+  // Get all approved expenses
+  const expenses = expensesSheet.getDataRange().getValues();
+  const balances = {};
+  
+  for (let i = 1; i < expenses.length; i++) {
+    const status = expenses[i][5];
+    if (status !== 'Approved') continue;
+    
+    const amount = parseFloat(expenses[i][2]);
+    const paidBy = expenses[i][3];
+    const splitBetween = expenses[i][4].split(',').map(p => p.trim());
+    
+    // Calculate share per person
+    const share = amount / splitBetween.length;
+    
+    // Deduct from each person's balance
+    splitBetween.forEach(person => {
+      if (!balances[person]) balances[person] = 0;
+      balances[person] -= share;
+    });
+    
+    // Add to payer's balance
+    if (!balances[paidBy]) balances[paidBy] = 0;
+    balances[paidBy] += amount;
+  }
+  
+  // Optimized settlement calculation
+  const creditors = [];
+  const debtors = [];
+  
+  Object.entries(balances).forEach(([person, balance]) => {
+    if (Math.abs(balance) < 0.01) return;
+    
+    if (balance > 0) {
+      creditors.push({ person, amount: balance });
+    } else {
+      debtors.push({ person, amount: -balance });
+    }
+  });
+  
+  // Sort by amount descending
+  creditors.sort((a, b) => b.amount - a.amount);
+  debtors.sort((a, b) => b.amount - a.amount);
+  
+  // Calculate settlements
+  const settlements = [];
+  while (creditors.length > 0 && debtors.length > 0) {
+    const creditor = creditors[0];
+    const debtor = debtors[0];
+    const amount = Math.min(creditor.amount, debtor.amount);
+    
+    settlements.push({
+      from: debtor.person,
+      to: creditor.person,
+      amount: Math.round(amount * 100) / 100
+    });
+    
+    creditor.amount -= amount;
+    debtor.amount -= amount;
+    
+    if (creditor.amount < 0.01) creditors.shift();
+    if (debtor.amount < 0.01) debtors.shift();
+  }
+  
+  // Get existing settlements to preserve confirmed ones
+  const existingData = settlementsSheet.getDataRange().getValues();
+  const confirmedSettlements = [];
+  
+  for (let i = 1; i < existingData.length; i++) {
+    if (existingData[i][6] === 'Confirmed') {
+      confirmedSettlements.push(existingData[i]);
+    }
+  }
+  
+  // Clear sheet and rewrite headers
+  settlementsSheet.clear();
+  settlementsSheet.appendRow(['Settlement ID', 'From', 'To', 'Amount', 'Confirmed By', 'Confirmed At', 'Status']);
+  
+  // Add confirmed settlements back
+  confirmedSettlements.forEach(row => {
+    settlementsSheet.appendRow(row);
+  });
+  
+  // Add new pending settlements
+  settlements.forEach(s => {
+    const settlementId = `${s.from}-${s.to}`;
+    // Check if already confirmed
+    const alreadyConfirmed = confirmedSettlements.some(row => row[0] === settlementId);
+    if (!alreadyConfirmed) {
+      settlementsSheet.appendRow([settlementId, s.from, s.to, s.amount, '', '', 'Pending']);
+    }
+  });
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    settlements: settlements,
+    message: 'Settlements calculated and stored'
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
 function confirmSettlement(sheet, data) {
   const settlementsSheet = getOrCreateSheet(sheet, 'Settlements');
   
-  settlementsSheet.appendRow([
-    data.settlementId,
-    data.from,
-    data.to,
-    data.amount,
-    data.confirmedBy,
-    new Date().toISOString()
+  // Find the settlement row and update it
+  const settlements = settlementsSheet.getDataRange().getValues();
+  let rowIndex = -1;
+  
+  for (let i = 1; i < settlements.length; i++) {
+    if (settlements[i][0] === data.settlementId && settlements[i][6] === 'Pending') {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+  
+  if (rowIndex > 0) {
+    // Update existing row
+    settlementsSheet.getRange(rowIndex, 5).setValue(data.confirmedBy);
+    settlementsSheet.getRange(rowIndex, 6).setValue(new Date().toISOString());
+    settlementsSheet.getRange(rowIndex, 7).setValue('Confirmed');
+  } else {
+    // Add new row if not found
+    settlementsSheet.appendRow([
+      data.settlementId,
+      data.from,
+      data.to,
+      data.amount,
+      data.confirmedBy,
+      new Date().toISOString(),
+      'Confirmed'
   ]);
   
   return ContentService.createTextOutput(JSON.stringify({
@@ -556,6 +696,64 @@ function rejectRegistration(sheet, data) {
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
+function storeUserLink(sheet, data) {
+  const userLinksSheet = getOrCreateSheet(sheet, 'UserLinks');
+  const { name, token, link, role } = data;
+  
+  if (!name || !token || !link || !role) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: 'Missing required fields'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  // Check if link already exists for this name and role
+  const links = userLinksSheet.getDataRange().getValues();
+  for (let i = 1; i < links.length; i++) {
+    if (links[i][0] === name && links[i][4] === role) {
+      // Update existing link
+      userLinksSheet.getRange(i + 1, 2).setValue(token);
+      userLinksSheet.getRange(i + 1, 3).setValue(link);
+      userLinksSheet.getRange(i + 1, 4).setValue(new Date());
+      
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: 'Link updated'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  
+  // Add new link
+  userLinksSheet.appendRow([name, token, link, new Date(), role]);
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    message: 'Link stored'
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function getUserLinks(sheet) {
+  const userLinksSheet = getOrCreateSheet(sheet, 'UserLinks');
+  const links = userLinksSheet.getDataRange().getValues();
+  
+  // Skip header row
+  const linkData = [];
+  for (let i = 1; i < links.length; i++) {
+    linkData.push({
+      name: links[i][0],
+      token: links[i][1],
+      link: links[i][2],
+      createdAt: links[i][3],
+      role: links[i][4]
+    });
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    links: linkData
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
 function registerUser(sheet, data) {
   const registrationsSheet = getOrCreateSheet(sheet, 'Registrations');
   const participantsSheet = getOrCreateSheet(sheet, 'Participants');
@@ -619,54 +817,3 @@ function getPendingRegistrations(sheet) {
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
-function approveRegistration(sheet, data) {
-  const registrationsSheet = getOrCreateSheet(sheet, 'Registrations');
-  const participantsSheet = getOrCreateSheet(sheet, 'Participants');
-  const name = data.name;
-  
-  // Find registration
-  const registrations = registrationsSheet.getDataRange().getValues();
-  for (let i = 1; i < registrations.length; i++) {
-    if (registrations[i][0] === name && registrations[i][2] === 'Pending') {
-      // Update status
-      registrationsSheet.getRange(i + 1, 3).setValue('Approved');
-      
-      // Add to participants
-      participantsSheet.appendRow([name]);
-      
-      return ContentService.createTextOutput(JSON.stringify({
-        success: true,
-        message: 'Registration approved'
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-  }
-  
-  return ContentService.createTextOutput(JSON.stringify({
-    success: false,
-    error: 'Registration not found'
-  })).setMimeType(ContentService.MimeType.JSON);
-}
-
-function rejectRegistration(sheet, data) {
-  const registrationsSheet = getOrCreateSheet(sheet, 'Registrations');
-  const name = data.name;
-  
-  // Find registration
-  const registrations = registrationsSheet.getDataRange().getValues();
-  for (let i = 1; i < registrations.length; i++) {
-    if (registrations[i][0] === name && registrations[i][2] === 'Pending') {
-      // Update status
-      registrationsSheet.getRange(i + 1, 3).setValue('Rejected');
-      
-      return ContentService.createTextOutput(JSON.stringify({
-        success: true,
-        message: 'Registration rejected'
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-  }
-  
-  return ContentService.createTextOutput(JSON.stringify({
-    success: false,
-    error: 'Registration not found'
-  })).setMimeType(ContentService.MimeType.JSON);
-}
