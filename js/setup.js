@@ -237,6 +237,7 @@ window.generateLinks = async function() {
     // Encrypt admin data
     const adminData = {
         key: generatedAdminKey,
+        userKey: generatedUserKey,  // Store user key so admin can generate personalized user links
         apiUrl: webAppUrl,
         name: groupName,
         isAdmin: true

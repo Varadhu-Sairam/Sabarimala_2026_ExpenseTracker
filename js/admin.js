@@ -262,7 +262,7 @@ window.approveRegistration = async function(name) {
         
         // Generate personalized encrypted token for this user
         const userData = {
-            key: CONFIG.ACCESS_KEY,  // Use USER_KEY for user access
+            key: AppState.decryptedData.userKey,  // Use USER_KEY for user access (not admin key!)
             apiUrl: CONFIG.API_URL,
             name: document.getElementById('groupName').textContent,
             userName: name,  // Track which user this link belongs to
@@ -905,6 +905,7 @@ async function encryptData(data) {
     CONFIG.API_URL = decryptedData.apiUrl;
     CONFIG.ACCESS_KEY = decryptedData.key;
     CONFIG.IS_ADMIN = true;
+    AppState.decryptedData = decryptedData;  // Store for later use (contains userKey)
     document.getElementById('groupName').textContent = decryptedData.name;
     
     // Store admin link as backup (links should already be stored from setup page)
