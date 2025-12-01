@@ -139,9 +139,18 @@ function doPost(e) {
         return approveRegistration(sheet, data);
       } else if (data.action === 'rejectRegistration') {
         return rejectRegistration(sheet, data);
-      } else if (data.action === 'storeUserLink') {
-        return storeUserLink(sheet, data);
       }
+    }
+    
+    // Store user link (admin only)
+    if (data.action === 'storeUserLink') {
+      if (!isAdmin) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          error: 'Admin access required'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      return storeUserLink(sheet, data);
     }
     
     // User actions (both admin and user can do these)
