@@ -7,10 +7,10 @@
 
 // 1. Your Google OAuth Client ID
 // Get from: https://console.cloud.google.com/apis/credentials
-const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = '979219974452-ol3lpo4h27cbj8pldpkmd5bg1gb1rvi2.apps.googleusercontent.com';
 
 // 2. Admin email (your Gmail address)
-const ADMIN_EMAIL = 'your.email@gmail.com';  // Change to your email
+const ADMIN_EMAIL = 'rajan.varadha77@gmail.com';  // Change to your email
 
 // ========================================
 

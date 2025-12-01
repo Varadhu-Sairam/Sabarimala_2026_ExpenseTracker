@@ -18,6 +18,9 @@ const Users = {
                 this.renderPending(data.pending || []);
                 this.renderApproved(data.approved || []);
                 document.getElementById('userManagementSection').style.display = 'block';
+                
+                // Generate invite link for admin
+                window.generateInviteLink();
             }
         } catch (error) {
             console.error('Error loading users:', error);

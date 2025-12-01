@@ -9,6 +9,35 @@ const App = {
      * Initialize the application
      */
     async init() {
+        // Check for invite link with group config
+        const urlParams = new URLSearchParams(window.location.search);
+        const inviteData = urlParams.get('join');
+        
+        if (inviteData) {
+            try {
+                // Decode and parse group config from invite link
+                const groupConfig = JSON.parse(atob(inviteData));
+                
+                // Save group to localStorage
+                const groups = JSON.parse(localStorage.getItem('expenseGroups') || '[]');
+                const existingIndex = groups.findIndex(g => g.id === groupConfig.id);
+                
+                if (existingIndex >= 0) {
+                    groups[existingIndex] = groupConfig;
+                } else {
+                    groups.push(groupConfig);
+                }
+                
+                localStorage.setItem('expenseGroups', JSON.stringify(groups));
+                localStorage.setItem('activeGroupId', groupConfig.id);
+                
+                // Remove invite param from URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } catch (e) {
+                console.error('Invalid invite link:', e);
+            }
+        }
+        
         // Check if expense group is configured
         const activeGroup = AppState.loadActiveGroup();
         
@@ -338,6 +367,48 @@ window.closeGroupSwitcher = function(event) {
         const modal = document.getElementById('groupSwitcherModal');
         if (modal) modal.remove();
     }
+};
+
+/**
+ * Generate and display invite link
+ */
+window.generateInviteLink = function() {
+    const activeGroup = AppState.loadActiveGroup();
+    if (!activeGroup) return;
+    
+    // Create a clean version without sensitive data
+    const inviteData = {
+        id: activeGroup.id,
+        name: activeGroup.name,
+        description: activeGroup.description,
+        sheetUrl: activeGroup.sheetUrl,
+        sheetId: activeGroup.sheetId,
+        apiUrl: activeGroup.apiUrl,
+        createdAt: activeGroup.createdAt
+    };
+    
+    // Encode to base64
+    const encoded = btoa(JSON.stringify(inviteData));
+    const inviteLink = `${window.location.origin}${window.location.pathname}?join=${encoded}`;
+    
+    // Display in input field
+    const linkInput = document.getElementById('inviteLink');
+    if (linkInput) {
+        linkInput.value = inviteLink;
+    }
+};
+
+/**
+ * Copy invite link to clipboard
+ */
+window.copyInviteLink = function() {
+    const linkInput = document.getElementById('inviteLink');
+    if (!linkInput) return;
+    
+    linkInput.select();
+    document.execCommand('copy');
+    
+    Utils.showStatus('✅ Invite link copied! Share it with your group members.', 'success');
 };
 
 // Make functions available globally for inline event handlers

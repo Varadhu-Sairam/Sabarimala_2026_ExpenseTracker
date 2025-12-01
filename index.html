@@ -31,6 +31,15 @@
             <div id="userManagementSection" style="display: none; margin-bottom: 40px; padding: 20px; background: #f8f9fa; border-radius: 12px;">
                 <h2 style="margin-bottom: 20px;">👤 User Management (Admin Only)</h2>
                 
+                <div style="background: #e7f3ff; border-left: 4px solid #2196F3; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h3 style="margin: 0 0 10px 0; color: #1976D2; font-size: 16px;">🔗 Invite Members</h3>
+                    <p style="margin: 0 0 10px 0; color: #555; font-size: 14px;">Share this link with group members so they can join without setup:</p>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="text" id="inviteLink" readonly style="flex: 1; padding: 10px; border: 2px solid #2196F3; border-radius: 6px; font-size: 13px; font-family: monospace; background: white;" onclick="this.select()">
+                        <button onclick="copyInviteLink()" style="padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; white-space: nowrap;">📋 Copy Link</button>
+                    </div>
+                </div>
+                
                 <div id="pendingRegistrations" style="margin-bottom: 30px;">
                     <!-- Pending registrations will be loaded here -->
                 </div>
