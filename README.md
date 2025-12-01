@@ -50,43 +50,37 @@ A secure, simplified expense tracking system for group trips using Google Sheets
 - Create a new blank spreadsheet
 - Copy the spreadsheet URL
 
-### 2. Deploy Google Apps Script
+### 2. Generate Keys & Script
+1. Open `setup.html` in your browser
+2. Fill in:
+   - **Admin Name** - Your name (will be added as first participant)
+   - **Group Name** - e.g., "Sabarimala 2026"
+   - **Google Sheet URL** - URL from step 1
+3. Click **🎲 Generate Random Keys**
+   - Cryptographically secure keys are generated automatically
+   - Complete Apps Script code is generated with keys embedded
+
+### 3. Deploy Google Apps Script
 1. In your sheet: **Extensions → Apps Script**
-2. Delete default code
-3. Copy entire content from `google-script.gs`
-4. Update these lines at the top:
-   ```javascript
-   const ADMIN_KEY = 'GENERATE_RANDOM_KEY_HERE';
-   const USER_KEY = 'GENERATE_RANDOM_KEY_HERE';
-   const ADMIN_NAME = 'Your Name'; // Admin participant name
-   ```
+2. Delete the default code
+3. Go back to `setup.html` and click **📋 Copy Script Code**
+4. Paste the copied code into Apps Script editor
 5. **Save** (Ctrl/Cmd + S)
 6. **Deploy → New deployment**
    - Type: **Web app**
    - Execute as: **Me**
    - Who has access: **Anyone**
    - Click **Deploy**
-7. Copy the **Web App URL** (you'll need this next)
+7. Authorize the app when prompted
+8. Copy the **Web App URL** that appears
 
-### 3. Generate Access Keys & Links
-1. Open `setup.html` in your browser
-2. Fill in:
-   - **Group Name** (e.g., "Sabarimala 2026")
-   - **Google Sheet URL** (from step 1)
-   - **Apps Script URL** (Web App URL from step 2)
-3. Click **🎲 Generate Random Keys**
-4. Copy both keys and update them in Apps Script:
-   - Replace `ADMIN_KEY = 'GENERATE_RANDOM_KEY_HERE'`
-   - Replace `USER_KEY = 'GENERATE_RANDOM_KEY_HERE'`
-5. **Redeploy** the script:
-   - **Deploy → Manage deployments**
-   - Click **Edit** (pencil icon)
-   - **Version**: New version
-   - Click **Deploy**
-6. Back in `setup.html`, click **🔗 Generate Encrypted Links**
-7. Copy the links:
+### 4. Generate Access Links
+1. Back in `setup.html`, paste the **Web App URL** in Step 3
+2. Click **🔗 Generate Encrypted Links**
+3. Copy and save both links:
    - **Admin Link** - Keep this private (full control)
    - **User Link** - Share with your group members
+4. The admin link will also be auto-saved to your Google Sheet on first use
 
 ### 4. Start Using
 - Open your **admin link** and verify it works
