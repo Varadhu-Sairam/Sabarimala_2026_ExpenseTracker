@@ -26,10 +26,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Inject API URL into index.html
-        run: |
-          # Replace the placeholder with the actual API URL from secrets
-          sed -i "s|{{API_URL_PLACEHOLDER}}|${{ secrets.API_URL }}|g" index.html
+      # No API URL injection - admin provides it via modal after deployment
         
       - name: Setup Pages
         uses: actions/configure-pages@v4
