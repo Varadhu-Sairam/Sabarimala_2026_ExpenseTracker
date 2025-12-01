@@ -79,12 +79,16 @@
             <h2>All User Links</h2>
             <p class="note-text">
                 Access links for all users are stored here. You can retrieve and share them if users lose their links.
+                The admin link is automatically stored. Add the shared user link below for easy retrieval.
             </p>
             
             <div class="form-group">
-                <label>Add Shared User Link:</label>
+                <label>Add Shared User Link (from setup page):</label>
                 <input type="text" id="sharedUserLink" placeholder="Paste the shared user link from setup page">
-                <button class="btn btn-primary btn-margin-top" onclick="addSharedUserLink()">➕ Add User Link</button>
+                <button class="btn btn-primary btn-margin-top" onclick="addSharedUserLink()">➕ Store User Link</button>
+                <p class="note-text" style="margin-top: 8px; font-size: 13px;">
+                    💡 Copy the "User Link" from the setup page and paste it here to store it for future reference.
+                </p>
             </div>
             
             <div id="userLinksList">
