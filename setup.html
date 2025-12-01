@@ -420,10 +420,18 @@ const ADMIN_EMAIL = 'your.email@gmail.com';
                 
                 const groupsList = document.getElementById('groupsList');
                 groupsList.innerHTML = groups.map(group => `
-                    <div class="group-card" onclick="selectGroup('${group.id}')">
-                        <h4>${escapeHtml(group.name)}</h4>
-                        <p>${escapeHtml(group.description || 'No description')}</p>
-                        <p style="color: #999; font-size: 11px;">Created: ${new Date(group.createdAt).toLocaleDateString()}</p>
+                    <div class="group-card" style="position: relative; padding-right: 60px;">
+                        <div onclick="selectGroup('${group.id}')" style="cursor: pointer;">
+                            <h4>${escapeHtml(group.name)}</h4>
+                            <p>${escapeHtml(group.description || 'No description')}</p>
+                            <p style="color: #999; font-size: 11px;">Created: ${new Date(group.createdAt).toLocaleDateString()}</p>
+                        </div>
+                        <button onclick="deleteGroup('${group.id}', event)" 
+                                style="position: absolute; top: 15px; right: 15px; background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;"
+                                onmouseover="this.style.background='#c82333'" 
+                                onmouseout="this.style.background='#dc3545'">
+                            🗑️ Delete
+                        </button>
                     </div>
                 `).join('');
             }
@@ -433,6 +441,36 @@ const ADMIN_EMAIL = 'your.email@gmail.com';
         function selectGroup(groupId) {
             localStorage.setItem('activeGroupId', groupId);
             window.location.href = 'index.html';
+        }
+
+        // Delete expense group
+        function deleteGroup(groupId, event) {
+            event.stopPropagation(); // Prevent card click
+            
+            const groups = JSON.parse(localStorage.getItem('expenseGroups') || '[]');
+            const group = groups.find(g => g.id === groupId);
+            
+            if (!group) return;
+            
+            // Confirm deletion
+            if (!confirm(`Are you sure you want to delete the expense group "${group.name}"?\n\nThis will remove the group configuration from this browser. The Google Sheet data will not be deleted.`)) {
+                return;
+            }
+            
+            // Remove from array
+            const updatedGroups = groups.filter(g => g.id !== groupId);
+            localStorage.setItem('expenseGroups', JSON.stringify(updatedGroups));
+            
+            // If deleted group was active, clear it
+            const activeGroupId = localStorage.getItem('activeGroupId');
+            if (activeGroupId === groupId) {
+                localStorage.removeItem('activeGroupId');
+            }
+            
+            // Reload groups list
+            loadExistingGroups();
+            
+            showStatus(`✅ Group "${group.name}" deleted successfully!`, 'success');
         }
 
         // Escape HTML to prevent XSS
