@@ -467,10 +467,14 @@ const ADMIN_EMAIL = 'your.email@gmail.com';
                 localStorage.removeItem('activeGroupId');
             }
             
-            // Reload groups list
-            loadExistingGroups();
-            
             showStatus(`✅ Group "${group.name}" deleted successfully!`, 'success');
+            
+            // Reload groups list or hide section if empty
+            if (updatedGroups.length === 0) {
+                document.getElementById('existingGroups').style.display = 'none';
+            } else {
+                loadExistingGroups();
+            }
         }
 
         // Escape HTML to prevent XSS
