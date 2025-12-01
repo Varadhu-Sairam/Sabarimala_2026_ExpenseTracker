@@ -302,7 +302,10 @@ async function loadMyBalance() {
             let totalPaid = 0;
             let totalOwed = 0;
             
-            data.expenses.forEach(expense => {
+            // Filter only approved expenses
+            const approvedExpenses = data.expenses.filter(e => e.status === 'approved');
+            
+            approvedExpenses.forEach(expense => {
                 const share = expense.amount / expense.splitBetween.length;
                 
                 // Amount I paid (case-insensitive)
