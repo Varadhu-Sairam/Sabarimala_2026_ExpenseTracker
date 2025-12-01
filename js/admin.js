@@ -676,32 +676,60 @@ async function loadSummary() {
 
 async function loadAdminBalance() {
     try {
-        // Get admin's personal name from AppState or prompt
-        if (!AppState.adminPersonalName) {
-            // Get list of participants to choose from
-            const participantsData = await API.get('getParticipants');
-            if (!participantsData.success) {
-                Utils.showStatus('Failed to load participants', 'error');
-                return;
-            }
-            
-            const name = prompt(`Enter your name as a participant:\n(Choose from: ${participantsData.participants.join(', ')})`);
-            if (!name || !name.trim()) return;
-            
-            // Verify name exists in participants (case-insensitive)
-            const matchingParticipant = participantsData.participants.find(
-                p => p.toLowerCase() === name.trim().toLowerCase()
-            );
-            
-            if (!matchingParticipant) {
-                Utils.showStatus('Name not found in participants list', 'error');
-                return;
-            }
-            
-            AppState.adminPersonalName = matchingParticipant;
-        }
+        // Get admin's personal name from decrypted data
+        const adminName = AppState.decryptedData?.userName;
         
-        const adminName = AppState.adminPersonalName;
+        if (!adminName) {
+            // Fallback: prompt if userName not in token (old setup)
+            if (!AppState.adminPersonalName) {
+                const participantsData = await API.get('getParticipants');
+                if (!participantsData.success) {
+                    Utils.showStatus('Failed to load participants', 'error');
+                    return;
+                }
+                
+                const name = prompt(`Enter your name as a participant:\n(Choose from: ${participantsData.participants.join(', ')})`);
+                if (!name || !name.trim()) return;
+                
+                const matchingParticipant = participantsData.participants.find(
+                    p => p.toLowerCase() === name.trim().toLowerCase()
+                );
+                
+                if (!matchingParticipant) {
+                    Utils.showStatus('Name not found in participants list', 'error');
+                    return;
+                }
+                
+                AppState.adminPersonalName = matchingParticipant;
+            }
+            
+            const fallbackAdminName = AppState.adminPersonalName;
+            
+            if (!fallbackAdminName) return;
+            
+            // Use fallback name for calculations
+            const data = await API.get('getExpenses');
+            
+            if (!data.success) return;
+            
+            const approvedExpenses = data.expenses.filter(e => e.status === 'approved');
+            
+            const amountPaid = approvedExpenses
+                .filter(e => e.paidBy && e.paidBy.toLowerCase() === fallbackAdminName.toLowerCase())
+                .reduce((sum, e) => sum + e.amount, 0);
+            
+            const amountOwed = approvedExpenses.reduce((sum, expense) => {
+                if (expense.splitBetween.some(person => person.toLowerCase() === fallbackAdminName.toLowerCase())) {
+                    return sum + (expense.amount / expense.splitBetween.length);
+                }
+                return sum;
+            }, 0);
+            
+            const balance = amountPaid - amountOwed;
+            
+            displayAdminBalance(balance, amountPaid, amountOwed);
+            return;
+        }
         
         const data = await API.get('getExpenses');
         
@@ -726,41 +754,46 @@ async function loadAdminBalance() {
         // Calculate balance
         const balance = amountPaid - amountOwed;
         
-        const balanceSummaryDiv = document.getElementById('adminBalanceSummary');
-        
-        let balanceStatus = '';
-        let balanceClass = '';
-        
-        if (balance > 0) {
-            balanceStatus = `You are owed ₹${balance.toFixed(2)}`;
-            balanceClass = 'balance-positive';
-        } else if (balance < 0) {
-            balanceStatus = `You owe ₹${Math.abs(balance).toFixed(2)}`;
-            balanceClass = 'balance-negative';
-        } else {
-            balanceStatus = 'You are all settled up!';
-            balanceClass = 'balance-zero';
-        }
-        
-        balanceSummaryDiv.innerHTML = `
-            <div class="balance-summary ${balanceClass}">
-                <h3>${balanceStatus}</h3>
-                <div class="balance-details">
-                    <div class="balance-detail-item">
-                        <span>You paid:</span>
-                        <span class="balance-amount">₹${amountPaid.toFixed(2)}</span>
-                    </div>
-                    <div class="balance-detail-item">
-                        <span>Your share:</span>
-                        <span class="balance-amount">₹${amountOwed.toFixed(2)}</span>
-                    </div>
-                </div>
-            </div>
-        `;
+        displayAdminBalance(balance, amountPaid, amountOwed);
     } catch (error) {
         console.error('Error loading admin balance:', error);
         document.getElementById('adminBalanceSummary').innerHTML = '<p>Error loading balance information.</p>';
     }
+}
+
+// Helper function to display admin balance
+function displayAdminBalance(balance, amountPaid, amountOwed) {
+    const balanceSummaryDiv = document.getElementById('adminBalanceSummary');
+    
+    let balanceStatus = '';
+    let balanceClass = '';
+    
+    if (balance > 0) {
+        balanceStatus = `You are owed ₹${balance.toFixed(2)}`;
+        balanceClass = 'balance-positive';
+    } else if (balance < 0) {
+        balanceStatus = `You owe ₹${Math.abs(balance).toFixed(2)}`;
+        balanceClass = 'balance-negative';
+    } else {
+        balanceStatus = 'You are all settled up!';
+        balanceClass = 'balance-zero';
+    }
+    
+    balanceSummaryDiv.innerHTML = `
+        <div class="balance-summary ${balanceClass}">
+            <h3>${balanceStatus}</h3>
+            <div class="balance-details">
+                <div class="balance-detail-item">
+                    <span>You paid:</span>
+                    <span class="balance-amount">₹${amountPaid.toFixed(2)}</span>
+                </div>
+                <div class="balance-detail-item">
+                    <span>Your share:</span>
+                    <span class="balance-amount">₹${amountOwed.toFixed(2)}</span>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 async function loadSettlements() {

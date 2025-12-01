@@ -218,11 +218,12 @@ window.generateKeys = async function() {
 // === LINK GENERATION HANDLER ===
 
 window.generateLinks = async function() {
+    const adminName = document.getElementById('adminName').value.trim();
     const groupName = document.getElementById('groupName').value.trim();
     const sheetUrl = document.getElementById('sheetUrl').value.trim();
     const webAppUrl = document.getElementById('webAppUrl').value.trim();
     
-    if (!groupName || !sheetUrl || !webAppUrl) {
+    if (!adminName || !groupName || !sheetUrl || !webAppUrl) {
         showStatus('Please fill in all fields above first', 'error');
         return;
     }
@@ -234,12 +235,13 @@ window.generateLinks = async function() {
     
     showStatus('Generating encrypted links...', 'info');
     
-    // Encrypt admin data
+    // Encrypt admin data (include admin's personal name)
     const adminData = {
         key: generatedAdminKey,
         userKey: generatedUserKey,  // Store user key so admin can generate personalized user links
         apiUrl: webAppUrl,
         name: groupName,
+        userName: adminName,  // Admin's personal name for balance calculations
         isAdmin: true
     };
     
