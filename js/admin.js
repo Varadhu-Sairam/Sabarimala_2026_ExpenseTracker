@@ -260,6 +260,12 @@ window.approveRegistration = async function(name) {
     try {
         Utils.showStatus('Approving and generating personalized user link...', 'info');
         
+        // Check if admin link has userKey (required for generating user links)
+        if (!AppState.decryptedData || !AppState.decryptedData.userKey) {
+            Utils.showStatus('❌ Error: Your admin link is outdated. Please regenerate it from the setup page to approve registrations.', 'error');
+            return;
+        }
+        
         // Generate personalized encrypted token for this user
         const userData = {
             key: AppState.decryptedData.userKey,  // Use USER_KEY for user access (not admin key!)
@@ -400,10 +406,15 @@ window.addSharedUserLink = async function() {
             linkInput.value = '';
             await loadUserLinks();
         } else {
-            Utils.showStatus('Error: ' + (result.error || 'Failed to add link'), 'error');
+            // Provide more detailed error message
+            if (result.error === 'Invalid access key') {
+                Utils.showStatus('❌ Authentication error. Please ensure you\'ve deployed the latest Google Apps Script code and are using a current admin link.', 'error');
+            } else {
+                Utils.showStatus('Error: ' + (result.error || 'Failed to add link'), 'error');
+            }
         }
     } catch (error) {
-        Utils.showStatus('Error adding user link', 'error');
+        Utils.showStatus('Error adding user link: ' + error.message, 'error');
         console.error(error);
     }
 };
