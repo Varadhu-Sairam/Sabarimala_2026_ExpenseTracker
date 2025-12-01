@@ -548,7 +548,8 @@ function confirmSettlement(sheet, data) {
       data.confirmedBy,
       new Date().toISOString(),
       'Confirmed'
-  ]);
+    ]);
+  }
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true
