@@ -463,6 +463,60 @@ textarea:focus {
     font-size: 1.1em;
 }
 
+/* ==================== SUMMARY SECTION ==================== */
+
+.summary-section {
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.summary-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.summary-card h3 {
+    font-size: 1.2em;
+    margin-bottom: 15px;
+    opacity: 0.95;
+}
+
+.summary-amount {
+    font-size: 3em;
+    font-weight: 700;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
+.summary-person-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #dee2e6;
+    background: #f8f9fa;
+    margin-bottom: 8px;
+    border-radius: 8px;
+}
+
+.summary-person-item:hover {
+    background: #e9ecef;
+}
+
+.summary-person-name {
+    font-weight: 600;
+    color: #333;
+}
+
+.summary-person-amount {
+    font-weight: 700;
+    font-size: 1.2em;
+    color: #667eea;
+}
+
 /* ==================== STATUS MESSAGES ==================== */
 
 .status-message {

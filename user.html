@@ -40,6 +40,7 @@
                 <button class="tab active" onclick="switchTab('expenses')">💰 Submit Expense</button>
                 <button class="tab" onclick="switchTab('myexpenses')">📊 My Expenses</button>
                 <button class="tab" onclick="switchTab('balance')">💵 My Balance</button>
+                <button class="tab" onclick="switchTab('summary')">📈 Summary</button>
                 <button class="tab" onclick="switchTab('settlements')">🧮 Settlements</button>
             </div>
 
@@ -105,6 +106,34 @@
             <h2>My Balance Summary</h2>
             <div id="balanceSummary">
                 <!-- Balance summary will be shown here -->
+            </div>
+        </div>
+
+        <!-- Summary Tab -->
+        <div id="summary" class="tab-content">
+            <h2>Group Expense Summary</h2>
+            
+            <div class="summary-section">
+                <div class="summary-card">
+                    <h3>Total Group Expenses</h3>
+                    <div class="summary-amount" id="totalGroupExpense">₹0.00</div>
+                </div>
+            </div>
+
+            <div class="summary-section">
+                <h3>Individual Expenses</h3>
+                <p class="note-text">Total amount paid by each person (approved expenses only)</p>
+                <div id="individualExpensesList">
+                    <!-- Individual expenses will be loaded here -->
+                </div>
+            </div>
+
+            <div class="summary-section">
+                <h3>Individual Shares</h3>
+                <p class="note-text">Total amount each person owes (their share of all expenses)</p>
+                <div id="individualSharesList">
+                    <!-- Individual shares will be loaded here -->
+                </div>
             </div>
         </div>
 
