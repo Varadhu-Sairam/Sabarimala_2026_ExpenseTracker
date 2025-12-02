@@ -522,13 +522,22 @@ async function loadPendingExpenses() {
             }
             
             listDiv.innerHTML = data.pending.map(expense => {
+                // Check if this is an edit or new expense
+                const isEdit = expense.editedBy && expense.editedBy.trim() !== '';
+                const statusBadge = isEdit ? 
+                    '<span class="status-badge" style="background: #ff9800; color: white;">✏️ EDITED</span>' : 
+                    '<span class="status-badge" style="background: #2196F3; color: white;">🆕 NEW</span>';
+                
                 const submittedInfo = expense.submittedBy ? 
                     `<span class="audit-info">📝 Submitted by: ${Utils.escapeHtml(expense.submittedBy)} ${expense.submittedAt ? 'at ' + new Date(expense.submittedAt).toLocaleString() : ''}</span>` : '';
+                
+                const editedInfo = isEdit ? 
+                    `<span class="audit-info" style="color: #ff9800;">✏️ Edited by: ${Utils.escapeHtml(expense.editedBy)} ${expense.editedAt ? 'at ' + new Date(expense.editedAt).toLocaleString() : ''}</span>` : '';
                 
                 return `
                 <div class="expense-item pending" id="pending-${expense.id}">
                     <div class="expense-header">
-                        <span class="expense-description">${Utils.escapeHtml(expense.description)}</span>
+                        <span class="expense-description">${Utils.escapeHtml(expense.description)} ${statusBadge}</span>
                         <span class="expense-amount">₹${expense.amount.toFixed(2)}</span>
                     </div>
                     <div class="expense-details">
@@ -536,6 +545,7 @@ async function loadPendingExpenses() {
                         <span>👤 Paid by: ${Utils.escapeHtml(expense.paidBy)}</span>
                         <span>👥 Split: ${expense.splitBetween.map(Utils.escapeHtml).join(', ')}</span>
                         ${submittedInfo}
+                        ${editedInfo}
                     </div>
                     <div class="expense-actions">
                         <button class="btn btn-primary btn-small" onclick="approveExpense('${expense.id}')">✓ Approve</button>

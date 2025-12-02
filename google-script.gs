@@ -298,7 +298,9 @@ function getPendingExpenses(sheet) {
           paidBy: data[i][4],
           splitBetween: data[i][5] ? data[i][5].split(',') : [],
           submittedBy: data[i][7] || '',
-          submittedAt: data[i][8] || ''
+          submittedAt: data[i][8] || '',
+          editedBy: data[i][11] || '',
+          editedAt: data[i][12] || ''
         });
       }
     }
