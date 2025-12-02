@@ -131,9 +131,9 @@ function doPost(e) {
       }
       
       if (data.action === 'approveExpense') {
-        return approveExpense(sheet, data.index);
+        return approveExpense(sheet, data);
       } else if (data.action === 'rejectExpense') {
-        return rejectExpense(sheet, data.index);
+        return rejectExpense(sheet, data);
       } else if (data.action === 'addParticipant') {
         return addParticipant(sheet, data.name);
       } else if (data.action === 'removeParticipant') {
@@ -283,7 +283,7 @@ function getPendingExpenses(sheet) {
           dateValue;
         
         pending.push({
-          id: data[i][0],  // Unique ID for the expense
+          id: data[i][0],
           index: i - 1,  // Keep for backward compatibility
           date: formattedDate,
           description: data[i][2],
@@ -310,8 +310,15 @@ function addExpense(sheet, expense, isAdmin) {
   const status = isAdmin ? 'approved' : 'pending';
   const submittedBy = expense.submittedBy || expense.paidBy; // Track who submitted
   
-  // Generate unique ID
-  const id = Utilities.getUuid();
+  // Generate auto-increment ID (find max ID and add 1)
+  const data = expensesSheet.getDataRange().getValues();
+  let maxId = 0;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] && typeof data[i][0] === 'number') {
+      maxId = Math.max(maxId, data[i][0]);
+    }
+  }
+  const id = maxId + 1;
   
   // Admin expenses are auto-approved, user expenses need approval
   expensesSheet.appendRow([
@@ -377,6 +384,14 @@ function getMyExpenses(sheet, userName) {
 function updateExpense(sheet, data, isAdmin) {
   const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
   
+  // Validate ID
+  if (!data.id) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: 'Invalid expense ID'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
   // Find row by ID
   const allData = expensesSheet.getDataRange().getValues();
   let row = -1;
@@ -434,6 +449,14 @@ function updateExpense(sheet, data, isAdmin) {
 function approveExpense(sheet, data) {
   const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
   
+  // Validate ID
+  if (!data.id) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: 'Invalid expense ID'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
   // Find row by ID
   const allData = expensesSheet.getDataRange().getValues();
   let row = -1;
@@ -464,15 +487,40 @@ function approveExpense(sheet, data) {
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
-function rejectExpense(sheet, index) {
+function rejectExpense(sheet, data) {
   const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
-  const row = index + 2; // +1 for header, +1 for 0-based index
+  
+  // Validate ID
+  if (!data.id) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: 'Invalid expense ID'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  // Find row by ID
+  const allData = expensesSheet.getDataRange().getValues();
+  let row = -1;
+  for (let i = 1; i < allData.length; i++) {
+    if (allData[i][0] === data.id) {
+      row = i + 1;
+      break;
+    }
+  }
+  
+  if (row === -1) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: 'Expense not found'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
   const now = new Date();
   
   // Change status to rejected instead of deleting (preserves audit trail)
-  expensesSheet.getRange(row, 6).setValue('rejected'); // Status
-  expensesSheet.getRange(row, 9).setValue(ADMIN_NAME); // Rejected By
-  expensesSheet.getRange(row, 10).setValue(now); // Rejected At
+  expensesSheet.getRange(row, 7).setValue('rejected'); // Status
+  expensesSheet.getRange(row, 10).setValue(ADMIN_NAME); // Rejected By
+  expensesSheet.getRange(row, 11).setValue(now); // Rejected At
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
