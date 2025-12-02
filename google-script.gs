@@ -425,8 +425,8 @@ function updateExpense(sheet, data, isAdmin) {
   
   // Users can only edit their own pending expenses
   if (!isAdmin) {
-    // Check ownership: compare with paidBy (column 4, index 4)
-    if (currentData[4] !== userName) {
+    // Check ownership: compare with submittedBy (column 8, index 7)
+    if (currentData[7] !== userName) {
       return ContentService.createTextOutput(JSON.stringify({
         success: false,
         error: 'Can only edit your own expenses'
