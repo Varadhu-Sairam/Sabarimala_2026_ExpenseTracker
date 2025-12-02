@@ -420,9 +420,13 @@ function updateExpense(sheet, data, isAdmin) {
   const currentData = expensesSheet.getRange(row, 1, 1, 11).getValues()[0];
   const currentStatus = currentData[6] || 'approved';
   
+  // Get the user name from expense data (submittedBy field)
+  const userName = data.expense.submittedBy || data.userName;
+  
   // Users can only edit their own pending expenses
   if (!isAdmin) {
-    if (currentData[4] !== data.userName) {
+    // Check ownership: compare with paidBy (column 4, index 4)
+    if (currentData[4] !== userName) {
       return ContentService.createTextOutput(JSON.stringify({
         success: false,
         error: 'Can only edit your own expenses'
