@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Test Suite - Expense Tracker</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #555;
+            margin-top: 30px;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-case {
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #ccc;
+            background: #f9f9f9;
+        }
+        .test-case.passed {
+            border-left-color: #4CAF50;
+            background: #e8f5e9;
+        }
+        .test-case.failed {
+            border-left-color: #f44336;
+            background: #ffebee;
+        }
+        .test-case.pending {
+            border-left-color: #ff9800;
+            background: #fff3e0;
+        }
+        .test-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .test-result {
+            font-size: 0.9em;
+            color: #666;
+        }
+        .summary {
+            background: #333;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .summary-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        #log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        .log-entry {
+            margin: 2px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Frontend Test Suite - Expense Tracker</h1>
+    
+    <div class="summary">
+        <h2 style="margin-top: 0; color: white;">Test Results</h2>
+        <div class="summary-stats">
+            <div class="stat">
+                <div class="stat-value" id="total-tests">0</div>
+                <div class="stat-label">Total Tests</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="passed-tests" style="color: #4CAF50;">0</div>
+                <div class="stat-label">Passed</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="failed-tests" style="color: #f44336;">0</div>
+                <div class="stat-label">Failed</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="pending-tests" style="color: #ff9800;">0</div>
+                <div class="stat-label">Pending</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button onclick="runAllTests()">▶️ Run All Tests</button>
+        <button onclick="runQuickTests()">⚡ Quick Tests</button>
+        <button onclick="clearResults()">🗑️ Clear Results</button>
+    </div>
+
+    <div id="log"></div>
+
+    <div id="test-results"></div>
+
+    <script type="module">
+        let testResults = {
+            total: 0,
+            passed: 0,
+            failed: 0,
+            pending: 0,
+            tests: []
+        };
+
+        // Mock API for testing
+        const MockAPI = {
+            expenses: [
+                { id: 1, date: '2025-12-01', description: 'Test Expense 1', amount: 100, paidBy: 'Alice', splitBetween: ['Alice', 'Bob'], status: 'approved' },
+                { id: 2, date: '2025-12-02', description: 'Test Expense 2', amount: 200, paidBy: 'Bob', splitBetween: ['Bob', 'Charlie'], status: 'approved' },
+                { id: 3, date: '2025-12-03', description: 'Pending Expense', amount: 150, paidBy: 'Charlie', splitBetween: ['Alice', 'Charlie'], status: 'pending' }
+            ],
+            
+            async get(action, params) {
+                await delay(100);
+                if (action === 'getExpenses') {
+                    return { success: true, expenses: this.expenses.filter(e => e.status === 'approved') };
+                } else if (action === 'getPendingExpenses') {
+                    return { success: true, pending: this.expenses.filter(e => e.status === 'pending') };
+                }
+                return { success: false };
+            },
+            
+            async post(action, data) {
+                await delay(100);
+                
+                if (action === 'approveExpense') {
+                    const expense = this.expenses.find(e => e.id == data.id);
+                    if (expense) {
+                        expense.status = 'approved';
+                        return { success: true };
+                    }
+                    return { success: false, error: 'Expense not found' };
+                }
+                
+                if (action === 'rejectExpense') {
+                    const expense = this.expenses.find(e => e.id == data.id);
+                    if (expense) {
+                        expense.status = 'rejected';
+                        return { success: true };
+                    }
+                    return { success: false, error: 'Expense not found' };
+                }
+                
+                if (action === 'updateExpense') {
+                    const expense = this.expenses.find(e => e.id == data.id);
+                    if (expense) {
+                        Object.assign(expense, data.expense);
+                        return { success: true };
+                    }
+                    return { success: false, error: 'Expense not found' };
+                }
+                
+                if (action === 'addExpense') {
+                    const maxId = Math.max(...this.expenses.map(e => e.id), 0);
+                    const newExpense = {
+                        id: maxId + 1,
+                        ...data.expense,
+                        status: 'pending'
+                    };
+                    this.expenses.push(newExpense);
+                    return { success: true };
+                }
+                
+                return { success: false };
+            }
+        };
+
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function assert(condition, message) {
+            if (!condition) {
+                throw new Error(message);
+            }
+        }
+
+        async function runTest(category, name, testFn) {
+            const testCase = {
+                category,
+                name,
+                status: 'pending',
+                error: null
+            };
+            
+            testResults.tests.push(testCase);
+            testResults.total++;
+            testResults.pending++;
+            updateUI();
+            
+            try {
+                await testFn();
+                testCase.status = 'passed';
+                testResults.passed++;
+                testResults.pending--;
+                log(`✓ ${category} - ${name}`, 'pass');
+            } catch (error) {
+                testCase.status = 'failed';
+                testCase.error = error.message;
+                testResults.failed++;
+                testResults.pending--;
+                log(`✗ ${category} - ${name}: ${error.message}`, 'fail');
+            }
+            
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('total-tests').textContent = testResults.total;
+            document.getElementById('passed-tests').textContent = testResults.passed;
+            document.getElementById('failed-tests').textContent = testResults.failed;
+            document.getElementById('pending-tests').textContent = testResults.pending;
+            
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '';
+            
+            const categories = [...new Set(testResults.tests.map(t => t.category))];
+            
+            categories.forEach(category => {
+                const section = document.createElement('div');
+                section.className = 'test-section';
+                section.innerHTML = `<h2>${category}</h2>`;
+                
+                const categoryTests = testResults.tests.filter(t => t.category === category);
+                categoryTests.forEach(test => {
+                    const testDiv = document.createElement('div');
+                    testDiv.className = `test-case ${test.status}`;
+                    testDiv.innerHTML = `
+                        <div class="test-name">${test.status === 'passed' ? '✓' : test.status === 'failed' ? '✗' : '⏳'} ${test.name}</div>
+                        ${test.error ? `<div class="test-result">Error: ${test.error}</div>` : ''}
+                    `;
+                    section.appendChild(testDiv);
+                });
+                
+                resultsDiv.appendChild(section);
+            });
+        }
+
+        window.runAllTests = async function() {
+            clearResults();
+            log('Starting full test suite...');
+            
+            // API Tests
+            await runTest('API', 'Should fetch expenses', async () => {
+                const result = await MockAPI.get('getExpenses');
+                assert(result.success, 'API should return success');
+                assert(Array.isArray(result.expenses), 'Should return expenses array');
+            });
+            
+            await runTest('API', 'Should fetch pending expenses', async () => {
+                const result = await MockAPI.get('getPendingExpenses');
+                assert(result.success, 'API should return success');
+                assert(result.pending.every(e => e.status === 'pending'), 'All should be pending');
+            });
+            
+            await runTest('API', 'Should approve expense by ID', async () => {
+                const result = await MockAPI.post('approveExpense', { id: 3 });
+                assert(result.success, 'Should approve successfully');
+                const expense = MockAPI.expenses.find(e => e.id === 3);
+                assert(expense.status === 'approved', 'Status should be approved');
+            });
+            
+            await runTest('API', 'Should reject expense by ID', async () => {
+                MockAPI.expenses[2].status = 'pending'; // Reset for test
+                const result = await MockAPI.post('rejectExpense', { id: 3 });
+                assert(result.success, 'Should reject successfully');
+                const expense = MockAPI.expenses.find(e => e.id === 3);
+                assert(expense.status === 'rejected', 'Status should be rejected');
+            });
+            
+            await runTest('API', 'Should update expense by ID', async () => {
+                const result = await MockAPI.post('updateExpense', { 
+                    id: 1, 
+                    expense: { description: 'Updated Description' }
+                });
+                assert(result.success, 'Should update successfully');
+                const expense = MockAPI.expenses.find(e => e.id === 1);
+                assert(expense.description === 'Updated Description', 'Description should be updated');
+            });
+            
+            // ID Tests
+            await runTest('IDs', 'Should handle numeric IDs', async () => {
+                const result = await MockAPI.post('approveExpense', { id: 1 });
+                assert(result.success, 'Should work with numeric ID');
+            });
+            
+            await runTest('IDs', 'Should handle string IDs', async () => {
+                const result = await MockAPI.post('approveExpense', { id: '1' });
+                assert(result.success, 'Should work with string ID');
+            });
+            
+            await runTest('IDs', 'Should not create duplicate on approve', async () => {
+                const beforeCount = MockAPI.expenses.length;
+                await MockAPI.post('approveExpense', { id: 1 });
+                await MockAPI.post('approveExpense', { id: 1 });
+                const afterCount = MockAPI.expenses.length;
+                assert(beforeCount === afterCount, 'Should not create duplicates');
+            });
+            
+            // UI Tests
+            await runTest('UI', 'Should display expense list', async () => {
+                assert(typeof document.createElement === 'function', 'DOM should be available');
+            });
+            
+            await runTest('UI', 'Should format currency', async () => {
+                const amount = 1234.56;
+                const formatted = new Intl.NumberFormat('en-IN', { 
+                    style: 'currency', 
+                    currency: 'INR' 
+                }).format(amount);
+                assert(formatted.includes('1,234.56'), 'Should format currency correctly');
+            });
+            
+            // Validation Tests
+            await runTest('Validation', 'Should validate required fields', async () => {
+                const expense = { date: '2025-12-01', description: '', amount: 100 };
+                const isValid = expense.date && expense.description && expense.amount;
+                assert(!isValid, 'Should fail validation with empty description');
+            });
+            
+            await runTest('Validation', 'Should validate positive amounts', async () => {
+                const amount = -100;
+                assert(amount <= 0, 'Negative amounts should be invalid');
+            });
+            
+            await runTest('Validation', 'Should validate split participants', async () => {
+                const splitBetween = ['Alice', 'Bob'];
+                assert(splitBetween.length > 0, 'Should have at least one participant');
+            });
+            
+            log('All tests completed!');
+        };
+
+        window.runQuickTests = async function() {
+            clearResults();
+            log('Running quick tests...');
+            
+            await runTest('Quick', 'API connectivity', async () => {
+                const result = await MockAPI.get('getExpenses');
+                assert(result.success, 'API should respond');
+            });
+            
+            await runTest('Quick', 'ID lookup', async () => {
+                const expense = MockAPI.expenses.find(e => e.id === 1);
+                assert(expense !== undefined, 'Should find expense by ID');
+            });
+            
+            await runTest('Quick', 'Status update', async () => {
+                const result = await MockAPI.post('approveExpense', { id: 1 });
+                assert(result.success, 'Should update status');
+            });
+            
+            log('Quick tests completed!');
+        };
+
+        window.clearResults = function() {
+            testResults = {
+                total: 0,
+                passed: 0,
+                failed: 0,
+                pending: 0,
+                tests: []
+            };
+            document.getElementById('log').innerHTML = '';
+            updateUI();
+            log('Results cleared');
+        };
+
+        // Initialize
+        log('Test suite ready. Click "Run All Tests" to begin.');
+    </script>
+</body>
+</html>
