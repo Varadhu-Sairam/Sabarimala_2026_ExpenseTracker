@@ -441,15 +441,12 @@ function updateExpense(sheet, data, isAdmin) {
   
   // Status logic:
   // - Admin can edit without changing status
-  // - User editing own expense: keep status or set to pending if was rejected
-  // - User editing others' expense: always set to pending for admin review
+  // - User editing ANY expense: always set to pending for admin approval
   if (!isAdmin) {
-    if (isEditingOthers || currentStatus === 'rejected') {
-      expensesSheet.getRange(row, 7).setValue('pending');
-      // Clear previous approval/rejection info when resetting to pending
-      expensesSheet.getRange(row, 10).setValue(''); // Approved/Rejected By
-      expensesSheet.getRange(row, 11).setValue(''); // Approved/Rejected At
-    }
+    expensesSheet.getRange(row, 7).setValue('pending');
+    // Clear previous approval/rejection info when resetting to pending
+    expensesSheet.getRange(row, 10).setValue(''); // Approved/Rejected By
+    expensesSheet.getRange(row, 11).setValue(''); // Approved/Rejected At
   }
   
   return ContentService.createTextOutput(JSON.stringify({

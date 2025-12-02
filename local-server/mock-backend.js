@@ -241,14 +241,11 @@ app.post('/api', (req, res) => {
         expense.editedAt = new Date().toISOString();
         
         // Status logic: admin can edit without changing status
-        // User editing others' expense: always set to pending
-        // User editing own expense: keep status or set to pending if was rejected
+        // User editing ANY expense: always set to pending for admin approval
         if (!admin) {
-          if (isEditingOthers || expense.status === 'rejected') {
-            expense.status = 'pending';
-            delete expense.approvedBy;
-            delete expense.approvedAt;
-          }
+          expense.status = 'pending';
+          delete expense.approvedBy;
+          delete expense.approvedAt;
         }
         
         console.log(`✓ Updated expense ID ${id}`);
