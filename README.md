@@ -43,7 +43,42 @@ A secure, simplified expense tracking system for group trips using Google Sheets
 - **Status Badges** - Visual indicators for expense approval status
 - **Clean Code** - Separated HTML, CSS, and JavaScript files
 
-## 🚀 Quick Start
+## 🧪 Local Development (Recommended)
+
+**Test everything locally in VS Code before deploying!**
+
+### Quick Start (One Command)
+
+```bash
+# Mac/Linux
+./quick-start.sh
+
+# Windows
+quick-start.bat
+```
+
+This will:
+1. ✅ Install dependencies
+2. ✅ Start local server at http://localhost:3000
+3. ✅ Open admin and user pages
+4. ✅ No deployment needed!
+
+### Features
+- Full backend simulation (no Google Apps Script)
+- In-memory database (resets on restart)
+- Real-time debugging with VS Code
+- Run all tests locally
+- See [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md) for full guide
+
+### Test Credentials
+```
+Admin: admin123
+User:  user123
+```
+
+---
+
+## 🚀 Production Setup
 
 ### 1. Create Google Sheet
 - Go to [Google Sheets](https://sheets.google.com)
