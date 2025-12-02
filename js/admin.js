@@ -250,9 +250,9 @@ window.editExpenseAdmin = async function(id) {
             cb.checked = expense.splitBetween.some(person => person.toLowerCase() === cb.value.toLowerCase());
         });
         
-        // Store the id for update and expense data
-        window.editingExpenseId = id;
-        window.editingExpenseOriginal = expense;
+        // Store the id for update using form dataset
+        const form = document.getElementById('expenseForm');
+        form.dataset.editId = id;
         const submitBtn = document.querySelector('#expenseManagement button[onclick="submitExpense()"]');
         if (submitBtn) {
             submitBtn.textContent = '✏️ Update Expense';
@@ -270,8 +270,6 @@ window.editExpenseAdmin = async function(id) {
         Utils.showStatus('Error loading expense for editing', 'error');
     }
 };
-
-// approveEditedExpense function removed - now using form-based edit flow via editPendingExpense
 
 window.rejectExpense = async function(id) {
     if (!confirm('Reject this expense?')) return;

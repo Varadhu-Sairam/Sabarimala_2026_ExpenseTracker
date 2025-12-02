@@ -291,7 +291,6 @@ function getPendingExpenses(sheet) {
         
         pending.push({
           id: data[i][0],
-          index: i - 1,  // Keep for backward compatibility
           date: formattedDate,
           description: data[i][2],
           amount: data[i][3],
@@ -370,7 +369,6 @@ function getMyExpenses(sheet, userName) {
       
       myExpenses.push({
         id: data[i][0],
-        index: i - 1,  // Keep for backward compatibility
         date: formattedDate,
         description: data[i][2],
         amount: data[i][3],
@@ -490,48 +488,6 @@ function approveExpense(sheet, data) {
   expensesSheet.getRange(row, 7).setValue('approved'); // Status
   expensesSheet.getRange(row, 10).setValue(ADMIN_NAME); // Approved By
   expensesSheet.getRange(row, 11).setValue(now); // Approved At
-  
-  return ContentService.createTextOutput(JSON.stringify({
-    success: true,
-    approvedBy: ADMIN_NAME,
-    approvedAt: now
-  })).setMimeType(ContentService.MimeType.JSON);
-}
-
-function rejectExpense(sheet, data) {
-  const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
-  
-  // Validate ID
-  if (!data.id) {
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      error: 'Invalid expense ID'
-    })).setMimeType(ContentService.MimeType.JSON);
-  }
-  
-  // Find row by ID
-  const allData = expensesSheet.getDataRange().getValues();
-  let row = -1;
-  for (let i = 1; i < allData.length; i++) {
-    if (allData[i][0] == data.id) {  // Use == to handle string/number comparison
-      row = i + 1;
-      break;
-    }
-  }
-  
-  if (row === -1) {
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      error: 'Expense not found'
-    })).setMimeType(ContentService.MimeType.JSON);
-  }
-  
-  const now = new Date();
-  
-  // Change status to rejected instead of deleting (preserves audit trail)
-  expensesSheet.getRange(row, 7).setValue('rejected'); // Status
-  expensesSheet.getRange(row, 10).setValue(ADMIN_NAME); // Rejected By
-  expensesSheet.getRange(row, 11).setValue(now); // Rejected At
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
@@ -852,8 +808,7 @@ function getPendingRegistrations(sheet) {
     if (data[i][2] === 'Pending') {
       pending.push({
         name: data[i][0],
-        requestedAt: data[i][1],
-        rowIndex: i + 1
+        requestedAt: data[i][1]
       });
     }
   }

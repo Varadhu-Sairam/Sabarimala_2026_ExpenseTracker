@@ -811,47 +811,7 @@ textarea:focus {
     opacity: 0.95;
 }
 
-/* ==================== INLINE EDIT FIELDS ==================== */
-
-.edit-field {
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    padding: 6px 10px;
-    font-size: 14px;
-    font-family: inherit;
-    width: 100%;
-    max-width: 300px;
-    transition: all 0.2s ease;
-}
-
-.edit-field:disabled {
-    background: #f8f9fa;
-    border-color: #e9ecef;
-    color: #495057;
-    cursor: not-allowed;
-}
-
-.expense-item.editing .edit-field:disabled {
-    background: white;
-    border-color: #ddd;
-    cursor: text;
-}
-
-.edit-amount {
-    max-width: 100px;
-    text-align: right;
-}
-
-.edit-date {
-    max-width: 150px;
-}
-
-.edit-field:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
-}
+/* ==================== PENDING EXPENSE ITEMS ==================== */
 
 .expense-item.pending .expense-header {
     display: flex;
