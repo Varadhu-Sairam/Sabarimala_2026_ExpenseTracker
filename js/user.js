@@ -102,14 +102,14 @@ window.submitExpense = async function() {
     }
     
     const form = document.getElementById('expenseForm');
-    const isEdit = form && form.dataset.editIndex;
+    const isEdit = form && form.dataset.editId;
     
     try {
         let result;
         if (isEdit) {
             // Update existing expense
             result = await API.post('updateExpense', {
-                index: parseInt(form.dataset.editIndex),
+                id: form.dataset.editId,
                 expense: { date, description, amount, paidBy, splitBetween, submittedBy: AppState.userName }
             });
         } else {
@@ -130,7 +130,7 @@ window.submitExpense = async function() {
             
             // Reset edit mode
             if (form) {
-                delete form.dataset.editIndex;
+                delete form.dataset.editId;
                 document.getElementById('submitBtn').textContent = '✅ Submit Expense';
             }
             
@@ -278,7 +278,7 @@ async function loadMyExpenses() {
                     : '<span class="status-badge status-approved">Approved</span>';
                 
                 const editBtn = expense.status === 'pending' 
-                    ? `<button class="btn-icon" onclick="editExpense(${expense.index})" title="Edit">✏️</button>`
+                    ? `<button class="btn-icon" onclick="editExpense('${expense.id}')" title="Edit">✏️</button>`
                     : '';
                 
                 return `
@@ -353,7 +353,7 @@ async function loadMyBalance() {
     }
 }
 
-window.editExpense = async function(index) {
+window.editExpense = async function(id) {
     try {
         // Reload my expenses to get latest data
         const userName = AppState.userName;
@@ -364,7 +364,7 @@ window.editExpense = async function(index) {
             return;
         }
         
-        const expense = data.expenses.find(e => e.index === index);
+        const expense = data.expenses.find(e => e.id === id);
         if (!expense) {
             alert('Expense not found');
             return;
@@ -382,8 +382,8 @@ window.editExpense = async function(index) {
             cb.checked = expense.splitBetween.some(person => person.toLowerCase() === cb.value.toLowerCase());
         });
         
-        // Store the index for update
-        document.getElementById('expenseForm').dataset.editIndex = index;
+        // Store the id for update
+        document.getElementById('expenseForm').dataset.editId = id;
         document.getElementById('submitBtn').textContent = '✏️ Update Expense';
         
         // Switch to submit tab

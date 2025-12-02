@@ -231,28 +231,29 @@ function getExpenses(sheet, accessKey) {
   
   for (let i = 1; i < data.length; i++) {
     if (data[i][0]) {
-      const status = data[i][5] || 'approved';
+      const status = data[i][6] || 'approved';
       
       // Users only see approved expenses
       // Admin sees all expenses
       if (isAdmin || status === 'approved') {
         // Format date as YYYY-MM-DD
-        const dateValue = data[i][0];
+        const dateValue = data[i][1];
         const formattedDate = dateValue instanceof Date ? 
           Utilities.formatDate(dateValue, Session.getScriptTimeZone(), 'yyyy-MM-dd') : 
           dateValue;
         
         expenses.push({
+          id: data[i][0],
           date: formattedDate,
-          description: data[i][1],
-          amount: data[i][2],
-          paidBy: data[i][3],
-          splitBetween: data[i][4] ? data[i][4].split(',') : [],
+          description: data[i][2],
+          amount: data[i][3],
+          paidBy: data[i][4],
+          splitBetween: data[i][5] ? data[i][5].split(',') : [],
           status: status,
-          submittedBy: data[i][6] || '',
-          submittedAt: data[i][7] || '',
-          approvedRejectedBy: data[i][8] || '',
-          approvedRejectedAt: data[i][9] || ''
+          submittedBy: data[i][7] || '',
+          submittedAt: data[i][8] || '',
+          approvedRejectedBy: data[i][9] || '',
+          approvedRejectedAt: data[i][10] || ''
         });
       }
     }
@@ -272,24 +273,25 @@ function getPendingExpenses(sheet) {
   
   for (let i = 1; i < data.length; i++) {
     if (data[i][0]) {
-      const status = data[i][5] || 'approved';
+      const status = data[i][6] || 'approved';
       
       if (status === 'pending') {
         // Format date as YYYY-MM-DD for HTML date input
-        const dateValue = data[i][0];
+        const dateValue = data[i][1];
         const formattedDate = dateValue instanceof Date ? 
           Utilities.formatDate(dateValue, Session.getScriptTimeZone(), 'yyyy-MM-dd') : 
           dateValue;
         
         pending.push({
-          index: i - 1,  // 0-based index for the expense
+          id: data[i][0],  // Unique ID for the expense
+          index: i - 1,  // Keep for backward compatibility
           date: formattedDate,
-          description: data[i][1],
-          amount: data[i][2],
-          paidBy: data[i][3],
-          splitBetween: data[i][4] ? data[i][4].split(',') : [],
-          submittedBy: data[i][6] || '',
-          submittedAt: data[i][7] || ''
+          description: data[i][2],
+          amount: data[i][3],
+          paidBy: data[i][4],
+          splitBetween: data[i][5] ? data[i][5].split(',') : [],
+          submittedBy: data[i][7] || '',
+          submittedAt: data[i][8] || ''
         });
       }
     }
@@ -308,8 +310,12 @@ function addExpense(sheet, expense, isAdmin) {
   const status = isAdmin ? 'approved' : 'pending';
   const submittedBy = expense.submittedBy || expense.paidBy; // Track who submitted
   
+  // Generate unique ID
+  const id = Utilities.getUuid();
+  
   // Admin expenses are auto-approved, user expenses need approval
   expensesSheet.appendRow([
+    id,
     expense.date,
     expense.description,
     expense.amount,
@@ -324,6 +330,7 @@ function addExpense(sheet, expense, isAdmin) {
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
+    id: id,
     status: status,
     submittedBy: submittedBy,
     submittedAt: now
@@ -337,25 +344,26 @@ function getMyExpenses(sheet, userName) {
   const myExpenses = [];
   
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0] && data[i][3] && data[i][3].toLowerCase() === userName.toLowerCase()) {
+    if (data[i][0] && data[i][4] && data[i][4].toLowerCase() === userName.toLowerCase()) {
       // Format date as YYYY-MM-DD for HTML date input
-      const dateValue = data[i][0];
+      const dateValue = data[i][1];
       const formattedDate = dateValue instanceof Date ? 
         Utilities.formatDate(dateValue, Session.getScriptTimeZone(), 'yyyy-MM-dd') : 
         dateValue;
       
       myExpenses.push({
-        index: i - 1,
+        id: data[i][0],
+        index: i - 1,  // Keep for backward compatibility
         date: formattedDate,
-        description: data[i][1],
-        amount: data[i][2],
-        paidBy: data[i][3],
-        splitBetween: data[i][4] ? data[i][4].split(',') : [],
-        status: data[i][5] || 'approved',
-        submittedBy: data[i][6] || '',
-        submittedAt: data[i][7] || '',
-        approvedRejectedBy: data[i][8] || '',
-        approvedRejectedAt: data[i][9] || ''
+        description: data[i][2],
+        amount: data[i][3],
+        paidBy: data[i][4],
+        splitBetween: data[i][5] ? data[i][5].split(',') : [],
+        status: data[i][6] || 'approved',
+        submittedBy: data[i][7] || '',
+        submittedAt: data[i][8] || '',
+        approvedRejectedBy: data[i][9] || '',
+        approvedRejectedAt: data[i][10] || ''
       });
     }
   }
@@ -368,15 +376,31 @@ function getMyExpenses(sheet, userName) {
 
 function updateExpense(sheet, data, isAdmin) {
   const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
-  const row = data.index + 2; // +1 for header, +1 for 0-based index
   
-  // Get current expense data to check ownership (now 10 columns)
-  const currentData = expensesSheet.getRange(row, 1, 1, 10).getValues()[0];
-  const currentStatus = currentData[5] || 'approved';
+  // Find row by ID
+  const allData = expensesSheet.getDataRange().getValues();
+  let row = -1;
+  for (let i = 1; i < allData.length; i++) {
+    if (allData[i][0] === data.id) {
+      row = i + 1;
+      break;
+    }
+  }
+  
+  if (row === -1) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: 'Expense not found'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  // Get current expense data to check ownership (now 11 columns with ID)
+  const currentData = expensesSheet.getRange(row, 1, 1, 11).getValues()[0];
+  const currentStatus = currentData[6] || 'approved';
   
   // Users can only edit their own pending expenses
   if (!isAdmin) {
-    if (currentData[3] !== data.userName) {
+    if (currentData[4] !== data.userName) {
       return ContentService.createTextOutput(JSON.stringify({
         success: false,
         error: 'Can only edit your own expenses'
@@ -390,16 +414,16 @@ function updateExpense(sheet, data, isAdmin) {
     }
   }
   
-  // Update the expense
-  expensesSheet.getRange(row, 1).setValue(data.expense.date);
-  expensesSheet.getRange(row, 2).setValue(data.expense.description);
-  expensesSheet.getRange(row, 3).setValue(data.expense.amount);
-  expensesSheet.getRange(row, 4).setValue(data.expense.paidBy);
-  expensesSheet.getRange(row, 5).setValue(data.expense.splitBetween.join(','));
+  // Update the expense (skip column 1 which is ID)
+  expensesSheet.getRange(row, 2).setValue(data.expense.date);
+  expensesSheet.getRange(row, 3).setValue(data.expense.description);
+  expensesSheet.getRange(row, 4).setValue(data.expense.amount);
+  expensesSheet.getRange(row, 5).setValue(data.expense.paidBy);
+  expensesSheet.getRange(row, 6).setValue(data.expense.splitBetween.join(','));
   
   // If user edited, reset to pending. If admin edited, keep current status
   if (!isAdmin) {
-    expensesSheet.getRange(row, 6).setValue('pending');
+    expensesSheet.getRange(row, 7).setValue('pending');
   }
   
   return ContentService.createTextOutput(JSON.stringify({
@@ -407,14 +431,31 @@ function updateExpense(sheet, data, isAdmin) {
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
-function approveExpense(sheet, index) {
+function approveExpense(sheet, data) {
   const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
-  const row = index + 2; // +1 for header, +1 for 0-based index
+  
+  // Find row by ID
+  const allData = expensesSheet.getDataRange().getValues();
+  let row = -1;
+  for (let i = 1; i < allData.length; i++) {
+    if (allData[i][0] === data.id) {
+      row = i + 1;
+      break;
+    }
+  }
+  
+  if (row === -1) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: 'Expense not found'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
   const now = new Date();
   
-  expensesSheet.getRange(row, 6).setValue('approved'); // Status
-  expensesSheet.getRange(row, 9).setValue(ADMIN_NAME); // Approved By
-  expensesSheet.getRange(row, 10).setValue(now); // Approved At
+  expensesSheet.getRange(row, 7).setValue('approved'); // Status
+  expensesSheet.getRange(row, 10).setValue(ADMIN_NAME); // Approved By
+  expensesSheet.getRange(row, 11).setValue(now); // Approved At
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
@@ -487,12 +528,12 @@ function calculateAndStoreSettlements(sheet) {
   const balances = {};
   
   for (let i = 1; i < expenses.length; i++) {
-    const status = expenses[i][5];
+    const status = expenses[i][6];
     if (status !== 'approved') continue;
     
-    const amount = parseFloat(expenses[i][2]);
-    const paidBy = expenses[i][3];
-    const splitBetween = expenses[i][4].split(',').map(p => p.trim());
+    const amount = parseFloat(expenses[i][3]);
+    const paidBy = expenses[i][4];
+    const splitBetween = expenses[i][5].split(',').map(p => p.trim());
     
     // Calculate share per person
     const share = amount / splitBetween.length;
@@ -648,7 +689,7 @@ function getOrCreateSheet(spreadsheet, sheetName) {
       // Store admin link when sheet is created
       // Admin link will be added separately through setup
     } else if (sheetName === 'Expenses') {
-      sheet.appendRow(['Date', 'Description', 'Amount', 'Paid By', 'Split Between', 'Status', 'Submitted By', 'Submitted At', 'Approved/Rejected By', 'Approved/Rejected At']);
+      sheet.appendRow(['ID', 'Date', 'Description', 'Amount', 'Paid By', 'Split Between', 'Status', 'Submitted By', 'Submitted At', 'Approved/Rejected By', 'Approved/Rejected At']);
     } else if (sheetName === 'Settlements') {
       sheet.appendRow(['Settlement ID', 'From', 'To', 'Amount', 'Confirmed By', 'Confirmed At', 'Status']);
     }

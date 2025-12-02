@@ -126,8 +126,8 @@ window.submitExpense = async function() {
     }
 };
 
-window.toggleEditMode = function(index) {
-    const item = document.getElementById(`pending-${index}`);
+window.toggleEditMode = function(id) {
+    const item = document.getElementById(`pending-${id}`);
     const isEditing = item.classList.contains('editing');
     
     if (isEditing) {
@@ -141,16 +141,16 @@ window.toggleEditMode = function(index) {
         // Update buttons
         const actionsDiv = item.querySelector('.expense-actions');
         actionsDiv.innerHTML = `
-            <button class="btn btn-primary btn-small" onclick="approveEditedExpense(${index})">✓ Save & Approve</button>
-            <button class="btn btn-secondary btn-small" onclick="toggleEditMode(${index})">✕ Cancel</button>
-            <button class="btn btn-danger btn-small" onclick="rejectExpense(${index})">🗑️ Reject</button>
+            <button class="btn btn-primary btn-small" onclick="approveEditedExpense('${id}')">✓ Save & Approve</button>
+            <button class="btn btn-secondary btn-small" onclick="toggleEditMode('${id}')">✕ Cancel</button>
+            <button class="btn btn-danger btn-small" onclick="rejectExpense('${id}')">🗑️ Reject</button>
         `;
     }
 };
 
-window.approveExpense = async function(index) {
+window.approveExpense = async function(id) {
     try {
-        const result = await API.post('approveExpense', { index });
+        const result = await API.post('approveExpense', { id });
         
         if (result.success) {
             Utils.showStatus('Expense approved!', 'success');
@@ -164,14 +164,14 @@ window.approveExpense = async function(index) {
     }
 };
 
-window.approveEditedExpense = async function(index) {
+window.approveEditedExpense = async function(id) {
     try {
         // Get edited values
-        const date = document.getElementById(`date-${index}`).value;
-        const description = document.getElementById(`desc-${index}`).value;
-        const amount = parseFloat(document.getElementById(`amt-${index}`).value);
-        const paidBy = document.getElementById(`paidby-${index}`).value;
-        const splitString = document.getElementById(`split-${index}`).value;
+        const date = document.getElementById(`date-${id}`).value;
+        const description = document.getElementById(`desc-${id}`).value;
+        const amount = parseFloat(document.getElementById(`amt-${id}`).value);
+        const paidBy = document.getElementById(`paidby-${id}`).value;
+        const splitString = document.getElementById(`split-${id}`).value;
         const splitBetween = splitString.split(',').map(s => s.trim()).filter(s => s);
         
         if (!date || !description || !amount || !paidBy || splitBetween.length === 0) {
@@ -181,7 +181,7 @@ window.approveEditedExpense = async function(index) {
         
         // Update expense first
         const updateResult = await API.post('updateExpense', {
-            index,
+            id,
             expense: { date, description, amount, paidBy, splitBetween }
         });
         
@@ -191,7 +191,7 @@ window.approveEditedExpense = async function(index) {
         }
         
         // Then approve
-        const approveResult = await API.post('approveExpense', { index });
+        const approveResult = await API.post('approveExpense', { id });
         
         if (approveResult.success) {
             Utils.showStatus('Expense updated and approved!', 'success');
@@ -205,11 +205,11 @@ window.approveEditedExpense = async function(index) {
     }
 };
 
-window.rejectExpense = async function(index) {
+window.rejectExpense = async function(id) {
     if (!confirm('Reject this expense?')) return;
     
     try {
-        const result = await API.post('rejectExpense', { index });
+        const result = await API.post('rejectExpense', { id });
         
         if (result.success) {
             Utils.showStatus('Expense rejected', 'success');
@@ -460,21 +460,21 @@ async function loadPendingExpenses() {
                     `<span class="audit-info">📝 Submitted by: ${Utils.escapeHtml(expense.submittedBy)} ${expense.submittedAt ? 'at ' + new Date(expense.submittedAt).toLocaleString() : ''}</span>` : '';
                 
                 return `
-                <div class="expense-item pending" id="pending-${expense.index}">
+                <div class="expense-item pending" id="pending-${expense.id}">
                     <div class="expense-header">
-                        <input type="text" class="edit-field" id="desc-${expense.index}" value="${Utils.escapeHtml(expense.description)}" disabled />
-                        <input type="number" class="edit-field edit-amount" id="amt-${expense.index}" value="${expense.amount}" step="0.01" disabled />
+                        <input type="text" class="edit-field" id="desc-${expense.id}" value="${Utils.escapeHtml(expense.description)}" disabled />
+                        <input type="number" class="edit-field edit-amount" id="amt-${expense.id}" value="${expense.amount}" step="0.01" disabled />
                     </div>
                     <div class="expense-details">
-                        <span>📅 <input type="date" class="edit-field edit-date" id="date-${expense.index}" value="${expense.date}" disabled /></span>
-                        <span>👤 Paid by: <input type="text" class="edit-field" id="paidby-${expense.index}" value="${Utils.escapeHtml(expense.paidBy)}" disabled /></span>
-                        <span>👥 Split: <input type="text" class="edit-field" id="split-${expense.index}" value="${expense.splitBetween.map(Utils.escapeHtml).join(', ')}" disabled /></span>
+                        <span>📅 <input type="date" class="edit-field edit-date" id="date-${expense.id}" value="${expense.date}" disabled /></span>
+                        <span>👤 Paid by: <input type="text" class="edit-field" id="paidby-${expense.id}" value="${Utils.escapeHtml(expense.paidBy)}" disabled /></span>
+                        <span>👥 Split: <input type="text" class="edit-field" id="split-${expense.id}" value="${expense.splitBetween.map(Utils.escapeHtml).join(', ')}" disabled /></span>
                         ${submittedInfo}
                     </div>
                     <div class="expense-actions">
-                        <button class="btn btn-primary btn-small" onclick="approveExpense(${expense.index})">✓ Approve</button>
-                        <button class="btn btn-secondary btn-small" onclick="toggleEditMode(${expense.index})">✏️ Edit</button>
-                        <button class="btn btn-danger btn-small" onclick="rejectExpense(${expense.index})">🗑️ Reject</button>
+                        <button class="btn btn-primary btn-small" onclick="approveExpense('${expense.id}')">✓ Approve</button>
+                        <button class="btn btn-secondary btn-small" onclick="toggleEditMode('${expense.id}')">✏️ Edit</button>
+                        <button class="btn btn-danger btn-small" onclick="rejectExpense('${expense.id}')">🗑️ Reject</button>
                     </div>
                 </div>
             `}).join('');
