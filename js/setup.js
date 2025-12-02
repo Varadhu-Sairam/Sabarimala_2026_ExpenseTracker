@@ -176,8 +176,24 @@ function displayScriptCode() {
 
 window.copyScriptCode = function() {
     const code = document.getElementById('scriptCode').textContent;
+    const button = event?.target;
+    
     navigator.clipboard.writeText(code).then(() => {
         showStatus('Script code copied to clipboard!', 'success');
+        
+        // Show visual feedback on button
+        if (button) {
+            const originalText = button.innerHTML;
+            button.innerHTML = '✓ Copied!';
+            button.style.background = '#4CAF50';
+            button.style.color = 'white';
+            
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.style.background = '';
+                button.style.color = '';
+            }, 2000);
+        }
     });
 };
 
@@ -282,10 +298,28 @@ window.generateLinks = async function() {
 
 // === UTILITY FUNCTIONS ===
 
-window.copyToClipboard = function(elementId) {
+window.copyToClipboard = function(elementId, buttonElement) {
     const text = document.getElementById(elementId).textContent;
+    
+    // Find the button if not provided (for backwards compatibility)
+    const button = buttonElement || event?.target;
+    
     navigator.clipboard.writeText(text).then(() => {
         showStatus('Copied to clipboard!', 'success');
+        
+        // Show visual feedback on button
+        if (button) {
+            const originalText = button.innerHTML;
+            button.innerHTML = '✓ Copied!';
+            button.style.background = '#4CAF50';
+            button.style.color = 'white';
+            
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.style.background = '';
+                button.style.color = '';
+            }, 2000);
+        }
     });
 };
 

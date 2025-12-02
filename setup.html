@@ -94,20 +94,12 @@
             
             <div id="keysDisplay" style="display: none; margin-top: 20px;">
                 <div class="warning">
-                    <strong>✓ Keys Generated!</strong> These will be automatically included in your Apps Script code below.
+                    <strong>✓ Keys Generated!</strong> The secure keys have been automatically included in your Apps Script code below. You can proceed to Step 3.
                 </div>
                 
-                <div style="margin: 15px 0;">
-                    <strong>Admin Key:</strong>
-                    <div class="key-display" id="adminKey"></div>
-                    <button class="btn btn-small" onclick="copyToClipboard('adminKey')">📋 Copy</button>
-                </div>
-                
-                <div style="margin: 15px 0;">
-                    <strong>User Key:</strong>
-                    <div class="key-display" id="userKey"></div>
-                    <button class="btn btn-small" onclick="copyToClipboard('userKey')">📋 Copy</button>
-                </div>
+                <!-- Keys are hidden since they're auto-included in the script -->
+                <div id="adminKey" style="display: none;"></div>
+                <div id="userKey" style="display: none;"></div>
             </div>
         </div>
 

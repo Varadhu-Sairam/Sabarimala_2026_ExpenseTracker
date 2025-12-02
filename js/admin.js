@@ -394,8 +394,24 @@ window.rejectRegistration = async function(name) {
 // === USER LINKS MANAGEMENT ===
 
 window.copyLinkToClipboard = function(link) {
+    const button = event?.target;
+    
     navigator.clipboard.writeText(link).then(() => {
         Utils.showStatus('Link copied to clipboard!', 'success');
+        
+        // Show visual feedback on button
+        if (button) {
+            const originalText = button.innerHTML;
+            button.innerHTML = '✓ Copied!';
+            button.style.background = '#4CAF50';
+            button.style.color = 'white';
+            
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.style.background = '';
+                button.style.color = '';
+            }, 2000);
+        }
     });
 };
 
