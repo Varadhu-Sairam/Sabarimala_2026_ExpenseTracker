@@ -161,7 +161,7 @@ window.deselectAllParticipants = function() {
 
 // === SETTLEMENT CONFIRMATION ===
 
-window.confirmSettlement = async function(from, to, amount) {
+window.confirmSettlementWithAmount = async function(from, to, maxAmount, settlementId) {
     // Check if the logged-in user is the creditor (person receiving money)
     const userName = AppState.userName;
     
@@ -176,14 +176,35 @@ window.confirmSettlement = async function(from, to, amount) {
         return;
     }
     
+    // Get the amount from input field
+    const inputAmount = parseFloat(document.getElementById(`amount_${settlementId}`).value);
+    
+    if (isNaN(inputAmount) || inputAmount <= 0) {
+        Utils.showStatus('Error: Please enter a valid amount', 'error');
+        return;
+    }
+    
+    if (inputAmount > maxAmount) {
+        Utils.showStatus(`Error: Amount cannot exceed ₹${maxAmount.toFixed(2)}`, 'error');
+        return;
+    }
+    
     try {
-        const settlementId = `${from}-${to}`;
+        const settlementIdStr = `${from}-${to}`;
         const result = await API.post('confirmSettlement', {
-            settlementId, from, to, amount, confirmedBy: userName
+            settlementId: settlementIdStr, 
+            from, 
+            to, 
+            amount: inputAmount,
+            originalAmount: maxAmount,
+            confirmedBy: userName
         });
         
         if (result.success) {
-            Utils.showStatus('Settlement confirmed!', 'success');
+            const message = inputAmount < maxAmount 
+                ? `Partial settlement of ₹${inputAmount.toFixed(2)} confirmed! Remaining: ₹${(maxAmount - inputAmount).toFixed(2)}`
+                : 'Settlement confirmed!';
+            Utils.showStatus(message, 'success');
             await loadSettlements();
         } else {
             Utils.showStatus('Error: ' + (result.error || 'Failed to confirm settlement'), 'error');
@@ -191,6 +212,12 @@ window.confirmSettlement = async function(from, to, amount) {
     } catch (error) {
         Utils.showStatus('Error confirming settlement', 'error');
     }
+};
+
+// Keep old function for backward compatibility
+window.confirmSettlement = async function(from, to, amount) {
+    const settlementId = `${from}-${to}`.replace(/[^a-zA-Z0-9-]/g, '_');
+    return confirmSettlementWithAmount(from, to, amount, settlementId);
 };
 
 // === DATA LOADING FUNCTIONS ===
@@ -521,6 +548,7 @@ async function loadSettlements() {
             listDiv.innerHTML = '<p>All settled up! 🎉</p>';
         } else {
             listDiv.innerHTML = settlements.map(s => {
+                const settlementId = `${s.from}-${s.to}`.replace(/[^a-zA-Z0-9-]/g, '_');
                 return `
                     <div class="settlement-item">
                         <div class="settlement-info">
@@ -529,9 +557,18 @@ async function loadSettlements() {
                             <span class="settlement-creditor">${Utils.escapeHtml(s.to)}</span>
                             <span class="settlement-amount">₹${s.amount.toFixed(2)}</span>
                         </div>
-                        <button class="btn btn-small" onclick="confirmSettlement('${Utils.escapeHtml(s.from)}', '${Utils.escapeHtml(s.to)}', ${s.amount})">
-                            ✓ Confirm
-                        </button>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="number" id="amount_${settlementId}" 
+                                   placeholder="Amount" 
+                                   value="${s.amount.toFixed(2)}" 
+                                   step="0.01" 
+                                   min="0" 
+                                   max="${s.amount.toFixed(2)}"
+                                   style="width: 100px; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                            <button class="btn btn-small" onclick="confirmSettlementWithAmount('${Utils.escapeHtml(s.from)}', '${Utils.escapeHtml(s.to)}', ${s.amount}, '${settlementId}')">
+                                ✓ Confirm
+                            </button>
+                        </div>
                     </div>
                 `;
             }).join('');

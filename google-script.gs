@@ -579,6 +579,26 @@ function getSettlementConfirmations(sheet) {
 function calculateAndStoreSettlements(sheet) {
   const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
   const settlementsSheet = getOrCreateSheet(sheet, 'Settlements');
+  const cacheSheet = getOrCreateSheet(sheet, 'SettlementCache');
+  
+  // Check if we have valid cached data (less than 5 minutes old)
+  if (cacheSheet.getLastRow() > 1) {
+    const cacheData = cacheSheet.getRange(2, 1, 1, 3).getValues()[0];
+    const cacheTime = new Date(cacheData[0]);
+    const now = new Date();
+    const cacheAgeMinutes = (now - cacheTime) / (1000 * 60);
+    
+    // If cache is less than 5 minutes old, return cached data
+    if (cacheAgeMinutes < 5) {
+      const cachedSettlements = JSON.parse(cacheData[1]);
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        pendingSettlements: cachedSettlements,
+        message: 'Settlements from cache (updated ' + Math.round(cacheAgeMinutes) + ' min ago)',
+        cached: true
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
   
   // Get all approved expenses
   const expenses = expensesSheet.getDataRange().getValues();
@@ -675,10 +695,20 @@ function calculateAndStoreSettlements(sheet) {
     }
   });
   
+  // Update cache with new calculation
+  cacheSheet.clear();
+  cacheSheet.appendRow(['Calculated At', 'Settlements JSON', 'Expense Count']);
+  cacheSheet.appendRow([
+    new Date().toISOString(),
+    JSON.stringify(settlements),
+    expenses.length - 1  // Track expense count for cache invalidation
+  ]);
+  
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
     pendingSettlements: settlements,
-    message: 'Settlements calculated and stored'
+    message: 'Settlements calculated and stored',
+    cached: false
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -709,7 +739,8 @@ function confirmSettlement(sheet, data, isAdmin) {
   }
   
   if (rowIndex > 0) {
-    // Update existing row
+    // Update existing row with confirmed amount
+    settlementsSheet.getRange(rowIndex, 4).setValue(data.amount);  // Update amount
     settlementsSheet.getRange(rowIndex, 5).setValue(data.confirmedBy);
     settlementsSheet.getRange(rowIndex, 6).setValue(new Date().toISOString());
     settlementsSheet.getRange(rowIndex, 7).setValue('Confirmed');
@@ -724,6 +755,13 @@ function confirmSettlement(sheet, data, isAdmin) {
       new Date().toISOString(),
       'Confirmed'
     ]);
+  }
+  
+  // Invalidate cache when settlement is confirmed (forces recalculation on next request)
+  const cacheSheet = getOrCreateSheet(sheet, 'SettlementCache');
+  if (cacheSheet.getLastRow() > 1) {
+    cacheSheet.clear();
+    cacheSheet.appendRow(['Calculated At', 'Settlements JSON', 'Expense Count']);
   }
   
   return ContentService.createTextOutput(JSON.stringify({
@@ -751,6 +789,8 @@ function getOrCreateSheet(spreadsheet, sheetName) {
       sheet.appendRow(['ID', 'Date', 'Description', 'Amount', 'Paid By', 'Split Between', 'Status', 'Submitted By', 'Submitted At', 'Approved/Rejected By', 'Approved/Rejected At', 'Edited By', 'Edited At']);
     } else if (sheetName === 'Settlements') {
       sheet.appendRow(['Settlement ID', 'From', 'To', 'Amount', 'Confirmed By', 'Confirmed At', 'Status']);
+    } else if (sheetName === 'SettlementCache') {
+      sheet.appendRow(['Calculated At', 'Settlements JSON', 'Expense Count']);
     }
   }
   
