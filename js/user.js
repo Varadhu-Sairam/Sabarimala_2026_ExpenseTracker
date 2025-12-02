@@ -160,16 +160,24 @@ window.deselectAllParticipants = function() {
 // === SETTLEMENT CONFIRMATION ===
 
 window.confirmSettlement = async function(from, to, amount) {
-    const confirmedBy = prompt(`Settlement Confirmation:\n${from} pays ₹${amount.toFixed(2)} to ${to}\n\nOnly ${to} or admin can confirm this settlement.\nEnter your name to confirm:`);
+    // Check if the logged-in user is the creditor (person receiving money)
+    const userName = AppState.userName;
     
-    if (!confirmedBy || confirmedBy.trim() === '') {
+    if (!userName) {
+        Utils.showStatus('Error: User not logged in', 'error');
+        return;
+    }
+    
+    // Only the creditor can confirm (admin uses admin.html)
+    if (userName.toLowerCase() !== to.toLowerCase()) {
+        Utils.showStatus(`Error: Only ${to} can confirm this settlement`, 'error');
         return;
     }
     
     try {
         const settlementId = `${from}-${to}`;
         const result = await API.post('confirmSettlement', {
-            settlementId, from, to, amount, confirmedBy: confirmedBy.trim()
+            settlementId, from, to, amount, confirmedBy: userName
         });
         
         if (result.success) {
