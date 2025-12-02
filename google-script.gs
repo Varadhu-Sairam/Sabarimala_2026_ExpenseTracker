@@ -453,7 +453,7 @@ function updateExpense(sheet, data, isAdmin) {
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
-function rejectExpense(sheet, data) {
+function approveExpense(sheet, data) {
   const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
   
   // Validate ID
@@ -468,7 +468,7 @@ function rejectExpense(sheet, data) {
   const allData = expensesSheet.getDataRange().getValues();
   let row = -1;
   for (let i = 1; i < allData.length; i++) {
-    if (allData[i][0] == data.id) {  // Use == to handle string/number comparison // Use == to handle string/number comparison // Use == to handle string/number comparison
+    if (allData[i][0] == data.id) {  // Use == to handle string/number comparison
       row = i + 1;
       break;
     }
@@ -486,6 +486,48 @@ function rejectExpense(sheet, data) {
   expensesSheet.getRange(row, 7).setValue('approved'); // Status
   expensesSheet.getRange(row, 10).setValue(ADMIN_NAME); // Approved By
   expensesSheet.getRange(row, 11).setValue(now); // Approved At
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    approvedBy: ADMIN_NAME,
+    approvedAt: now
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function rejectExpense(sheet, data) {
+  const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
+  
+  // Validate ID
+  if (!data.id) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: 'Invalid expense ID'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  // Find row by ID
+  const allData = expensesSheet.getDataRange().getValues();
+  let row = -1;
+  for (let i = 1; i < allData.length; i++) {
+    if (allData[i][0] == data.id) {  // Use == to handle string/number comparison
+      row = i + 1;
+      break;
+    }
+  }
+  
+  if (row === -1) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: 'Expense not found'
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  const now = new Date();
+  
+  // Change status to rejected instead of deleting (preserves audit trail)
+  expensesSheet.getRange(row, 7).setValue('rejected'); // Status
+  expensesSheet.getRange(row, 10).setValue(ADMIN_NAME); // Rejected By
+  expensesSheet.getRange(row, 11).setValue(now); // Rejected At
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
