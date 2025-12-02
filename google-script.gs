@@ -99,6 +99,13 @@ function doPost(e) {
       if (data.expense && typeof data.expense === 'string') {
         try { data.expense = JSON.parse(data.expense); } catch (_) {}
       }
+      // Parse id if it's a string number
+      if (data.id && typeof data.id === 'string') {
+        const parsed = parseInt(data.id, 10);
+        if (!isNaN(parsed)) {
+          data.id = parsed;
+        }
+      }
     }
   } catch (err) {
     data = e.parameter || {};
@@ -396,7 +403,7 @@ function updateExpense(sheet, data, isAdmin) {
   const allData = expensesSheet.getDataRange().getValues();
   let row = -1;
   for (let i = 1; i < allData.length; i++) {
-    if (allData[i][0] === data.id) {
+    if (allData[i][0] == data.id) {  // Use == to handle string/number comparison
       row = i + 1;
       break;
     }
@@ -446,7 +453,7 @@ function updateExpense(sheet, data, isAdmin) {
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
-function approveExpense(sheet, data) {
+function rejectExpense(sheet, data) {
   const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
   
   // Validate ID
@@ -461,7 +468,7 @@ function approveExpense(sheet, data) {
   const allData = expensesSheet.getDataRange().getValues();
   let row = -1;
   for (let i = 1; i < allData.length; i++) {
-    if (allData[i][0] === data.id) {
+    if (allData[i][0] == data.id) {  // Use == to handle string/number comparison // Use == to handle string/number comparison // Use == to handle string/number comparison
       row = i + 1;
       break;
     }
@@ -502,7 +509,7 @@ function rejectExpense(sheet, data) {
   const allData = expensesSheet.getDataRange().getValues();
   let row = -1;
   for (let i = 1; i < allData.length; i++) {
-    if (allData[i][0] === data.id) {
+    if (allData[i][0] == data.id) {  // Use == to handle string/number comparison
       row = i + 1;
       break;
     }
