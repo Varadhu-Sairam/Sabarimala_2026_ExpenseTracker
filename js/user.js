@@ -380,14 +380,15 @@ window.editExpense = async function(id) {
             return;
         }
         
-        let expense = myExpensesData.expenses.find(e => e.id === id);
+        // Use == for comparison to handle string/number ID mismatch
+        let expense = myExpensesData.expenses.find(e => e.id == id);
         
         // If not found in my expenses, user might be editing someone else's
         // Show a notice that editing will require admin approval
         if (!expense) {
             const allExpensesData = await API.get('getExpenses');
             if (allExpensesData.success) {
-                expense = allExpensesData.expenses.find(e => e.id === id);
+                expense = allExpensesData.expenses.find(e => e.id == id);
                 if (expense) {
                     const proceed = confirm(`You are editing an expense submitted by ${expense.submittedBy}.\nYour changes will require admin approval.\n\nProceed with edit?`);
                     if (!proceed) return;

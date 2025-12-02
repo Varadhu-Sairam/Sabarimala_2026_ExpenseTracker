@@ -194,7 +194,8 @@ window.editExpenseAdmin = async function(id) {
             return;
         }
         
-        const expense = data.expenses.find(e => e.id === id);
+        // Use == for comparison to handle string/number ID mismatch
+        const expense = data.expenses.find(e => e.id == id);
         if (!expense) {
             Utils.showStatus('Expense not found', 'error');
             return;
