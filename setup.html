@@ -109,22 +109,24 @@
             
             <div id="scriptSection" style="display: none;">
                 <p>1. Open your Google Sheet and go to <strong>Extensions → Apps Script</strong></p>
-                <p>2. Delete any existing code and paste this (keys are already filled in!):</p>
+                <p>2. Delete any existing code and paste the generated script (keys are already filled in!):</p>
                 
-                <button class="btn btn-primary" onclick="copyScriptCode()" style="margin: 10px 0;">📋 Copy Apps Script Code</button>
+                <button class="btn btn-primary" onclick="copyScriptCode()" style="margin: 15px 0;">📋 Copy Apps Script Code</button>
                 
-                <div class="code-block" id="scriptCode" style="max-height: 300px; overflow-y: auto;">
+                <!-- Hidden code block for copying -->
+                <div class="code-block" id="scriptCode" style="display: none;">
                     <!-- Script will be inserted here -->
                 </div>
                 
-                <p>3. Click <strong>Deploy → New deployment</strong></p>
-                <p>4. Select type: <strong>Web app</strong></p>
-                <p>5. Set:</p>
+                <p>3. Paste the code in Apps Script editor</p>
+                <p>4. Click <strong>Deploy → New deployment</strong></p>
+                <p>5. Select type: <strong>Web app</strong></p>
+                <p>6. Set:</p>
                 <ul>
                     <li><strong>Execute as:</strong> Me</li>
                     <li><strong>Who has access:</strong> Anyone</li>
                 </ul>
-                <p>6. Click <strong>Deploy</strong> and copy the Web App URL</p>
+                <p>7. Click <strong>Deploy</strong> and copy the Web App URL</p>
                 
                 <div class="form-group" style="margin-top: 20px;">
                     <label>Web App URL:</label>
