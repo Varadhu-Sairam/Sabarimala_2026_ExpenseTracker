@@ -74,7 +74,9 @@ window.switchTab = function(tabName, event) {
     document.getElementById(tabName).classList.add('active');
     
     // Load data when switching to specific tabs
-    if (tabName === 'myexpenses') {
+    if (tabName === 'expenses') {
+        loadExpenses();
+    } else if (tabName === 'myexpenses') {
         loadMyExpenses();
     } else if (tabName === 'balance') {
         loadMyBalance();
