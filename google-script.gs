@@ -730,13 +730,15 @@ function confirmSettlement(sheet, data, isAdmin) {
   const settlementsSheet = getOrCreateSheet(sheet, 'Settlements');
   
   // Validate that confirmedBy is either the creditor (to) or admin
-  const isCreditor = data.confirmedBy.toLowerCase() === data.to.toLowerCase();
-  
-  if (!isAdmin && !isCreditor) {
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      error: 'Only the person receiving the payment or admin can confirm this settlement'
-    })).setMimeType(ContentService.MimeType.JSON);
+  // Admin can always confirm, otherwise must be the creditor
+  if (!isAdmin) {
+    const isCreditor = data.confirmedBy.toLowerCase() === data.to.toLowerCase();
+    if (!isCreditor) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        error: 'Only the person receiving the payment or admin can confirm this settlement'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
   }
   
   // Find the settlement row and update it
