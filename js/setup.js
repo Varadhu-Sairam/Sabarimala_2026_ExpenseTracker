@@ -223,12 +223,15 @@ window.generateKeys = async function() {
     document.getElementById('userKey').textContent = generatedUserKey;
     document.getElementById('keysDisplay').style.display = 'block';
     
-    // Show script section and load code with keys
+    // Show script section and load code with keys (code stays hidden, only copy button visible)
     document.getElementById('scriptPlaceholder').style.display = 'none';
     document.getElementById('scriptSection').style.display = 'block';
     displayScriptCode();
     
-    showStatus('Keys generated! Script code is ready to copy below.', 'success');
+    // Ensure code block stays hidden
+    document.getElementById('scriptCode').style.display = 'none';
+    
+    showStatus('Keys generated! Click the copy button to get your script code.', 'success');
 };
 
 // === LINK GENERATION HANDLER ===
