@@ -243,19 +243,28 @@ async function loadExpenses() {
                 return;
             }
             
-            listDiv.innerHTML = data.expenses.map(expense => `
-                <div class="expense-item">
-                    <div class="expense-header">
-                        <span class="expense-description">${Utils.escapeHtml(expense.description)}</span>
-                        <span class="expense-amount">₹${expense.amount.toFixed(2)}</span>
+            const userName = AppState.userName || '';
+            
+            listDiv.innerHTML = data.expenses.map(expense => {
+                const isOwn = expense.submittedBy && expense.submittedBy.toLowerCase() === userName.toLowerCase();
+                const editBtn = `<button class="btn-icon" onclick="editExpense('${expense.id}')" title="Edit${!isOwn ? ' (requires admin approval)' : ''}">✏️</button>`;
+                
+                return `
+                    <div class="expense-item">
+                        <div class="expense-header">
+                            <span class="expense-description">${Utils.escapeHtml(expense.description)}</span>
+                            <span class="expense-amount">₹${expense.amount.toFixed(2)}</span>
+                        </div>
+                        <div class="expense-details">
+                            <span>📅 ${expense.date}</span>
+                            <span>👤 Paid by: ${Utils.escapeHtml(expense.paidBy)}</span>
+                            <span>👥 Split: ${expense.splitBetween.map(Utils.escapeHtml).join(', ')}</span>
+                            ${editBtn}
+                            ${!isOwn ? '<span style="font-size: 0.8em; color: #999;">⚠️ Edit requires approval</span>' : ''}
+                        </div>
                     </div>
-                    <div class="expense-details">
-                        <span>📅 ${expense.date}</span>
-                        <span>👤 Paid by: ${Utils.escapeHtml(expense.paidBy)}</span>
-                        <span>👥 Split: ${expense.splitBetween.map(Utils.escapeHtml).join(', ')}</span>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
     } catch (error) {
         console.error('Error loading expenses:', error);
@@ -285,9 +294,8 @@ async function loadMyExpenses() {
                     ? '<span class="status-badge status-rejected">Rejected</span>'
                     : '<span class="status-badge status-approved">Approved</span>';
                 
-                const editBtn = expense.status === 'pending' 
-                    ? `<button class="btn-icon" onclick="editExpense('${expense.id}')" title="Edit">✏️</button>`
-                    : '';
+                // All expenses can now be edited
+                const editBtn = `<button class="btn-icon" onclick="editExpense('${expense.id}')" title="Edit">✏️</button>`;
                 
                 return `
                     <div class="expense-item">
@@ -363,16 +371,30 @@ async function loadMyBalance() {
 
 window.editExpense = async function(id) {
     try {
-        // Reload my expenses to get latest data
+        // Load all expenses to allow editing any expense
         const userName = AppState.userName;
-        const data = await API.get('getMyExpenses', { userName });
+        const myExpensesData = await API.get('getMyExpenses', { userName });
         
-        if (!data.success) {
+        if (!myExpensesData.success) {
             alert('Error loading expense data');
             return;
         }
         
-        const expense = data.expenses.find(e => e.id === id);
+        let expense = myExpensesData.expenses.find(e => e.id === id);
+        
+        // If not found in my expenses, user might be editing someone else's
+        // Show a notice that editing will require admin approval
+        if (!expense) {
+            const allExpensesData = await API.get('getExpenses');
+            if (allExpensesData.success) {
+                expense = allExpensesData.expenses.find(e => e.id === id);
+                if (expense) {
+                    const proceed = confirm(`You are editing an expense submitted by ${expense.submittedBy}.\nYour changes will require admin approval.\n\nProceed with edit?`);
+                    if (!proceed) return;
+                }
+            }
+        }
+        
         if (!expense) {
             alert('Expense not found');
             return;

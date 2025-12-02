@@ -227,15 +227,9 @@ app.post('/api', (req, res) => {
           return res.json({ success: false, error: 'Expense not found' });
         }
         
-        // Check ownership for non-admin
-        if (!admin && expense.paidBy !== expenseData.userName) {
-          return res.json({ success: false, error: 'Can only edit your own expenses' });
-        }
-        
-        // Check status for non-admin
-        if (!admin && expense.status !== 'pending') {
-          return res.json({ success: false, error: 'Can only edit pending expenses' });
-        }
+        const userName = expenseData.submittedBy || expenseData.userName;
+        const originalSubmitter = expense.submittedBy || expense.paidBy;
+        const isEditingOthers = (originalSubmitter !== userName);
         
         // Update expense
         expense.date = expenseData.date;
@@ -243,10 +237,18 @@ app.post('/api', (req, res) => {
         expense.amount = parseFloat(expenseData.amount);
         expense.paidBy = expenseData.paidBy;
         expense.splitBetween = expenseData.splitBetween;
+        expense.editedBy = userName;
+        expense.editedAt = new Date().toISOString();
         
-        // Reset to pending if user edited
+        // Status logic: admin can edit without changing status
+        // User editing others' expense: always set to pending
+        // User editing own expense: keep status or set to pending if was rejected
         if (!admin) {
-          expense.status = 'pending';
+          if (isEditingOthers || expense.status === 'rejected') {
+            expense.status = 'pending';
+            delete expense.approvedBy;
+            delete expense.approvedAt;
+          }
         }
         
         console.log(`✓ Updated expense ID ${id}`);

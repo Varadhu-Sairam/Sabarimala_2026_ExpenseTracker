@@ -103,26 +103,46 @@ window.submitExpense = async function() {
         return;
     }
     
+    const isEdit = window.editingExpenseId;
+    
     try {
-        const result = await API.post('addExpense', {
-            expense: { date, description, amount, paidBy, splitBetween }
-        });
+        let result;
+        if (isEdit) {
+            // Update existing expense
+            result = await API.post('updateExpense', {
+                id: window.editingExpenseId,
+                expense: { date, description, amount, paidBy, splitBetween, submittedBy: 'admin' }
+            });
+        } else {
+            // Add new expense
+            result = await API.post('addExpense', {
+                expense: { date, description, amount, paidBy, splitBetween }
+            });
+        }
         
         if (result.success) {
-            Utils.showStatus('Expense added!', 'success');
+            Utils.showStatus(isEdit ? 'Expense updated!' : 'Expense added!', 'success');
             
-            // Clear form
+            // Clear form and edit state
             document.getElementById('expenseDescription').value = '';
             document.getElementById('expenseAmount').value = '';
             document.getElementById('expensePaidBy').value = '';
             document.querySelectorAll('#splitCheckboxes input').forEach(cb => cb.checked = false);
             
+            window.editingExpenseId = null;
+            window.editingExpenseOriginal = null;
+            const submitBtn = document.querySelector('#expenseManagement button[onclick="submitExpense()"]');
+            if (submitBtn) {
+                submitBtn.textContent = '✅ Submit Expense';
+            }
+            
             await loadExpenses();
+            await loadPendingExpenses();
         } else {
-            Utils.showStatus('Error: ' + (result.error || 'Failed to add expense'), 'error');
+            Utils.showStatus('Error: ' + (result.error || `Failed to ${isEdit ? 'update' : 'add'} expense`), 'error');
         }
     } catch (error) {
-        Utils.showStatus('Error adding expense', 'error');
+        Utils.showStatus(`Error ${isEdit ? 'updating' : 'adding'} expense`, 'error');
     }
 };
 
@@ -161,6 +181,55 @@ window.approveExpense = async function(id) {
         }
     } catch (error) {
         Utils.showStatus('Error approving expense', 'error');
+    }
+};
+
+window.editExpenseAdmin = async function(id) {
+    try {
+        // Load expense data
+        const data = await API.get('getExpenses');
+        
+        if (!data.success) {
+            Utils.showStatus('Error loading expense data', 'error');
+            return;
+        }
+        
+        const expense = data.expenses.find(e => e.id === id);
+        if (!expense) {
+            Utils.showStatus('Expense not found', 'error');
+            return;
+        }
+        
+        // Pre-fill the expense form
+        document.getElementById('expenseDate').value = expense.date;
+        document.getElementById('expenseDescription').value = expense.description;
+        document.getElementById('expenseAmount').value = expense.amount;
+        document.getElementById('expensePaidBy').value = expense.paidBy;
+        
+        // Check split participants
+        const checkboxes = document.querySelectorAll('#splitCheckboxes input[type="checkbox"]');
+        checkboxes.forEach(cb => {
+            cb.checked = expense.splitBetween.some(person => person.toLowerCase() === cb.value.toLowerCase());
+        });
+        
+        // Store the id for update and expense data
+        window.editingExpenseId = id;
+        window.editingExpenseOriginal = expense;
+        const submitBtn = document.querySelector('#expenseManagement button[onclick="submitExpense()"]');
+        if (submitBtn) {
+            submitBtn.textContent = '✏️ Update Expense';
+        }
+        
+        // Switch to expense management tab
+        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        document.querySelector('.tab[onclick*="expenseManagement"]').classList.add('active');
+        document.getElementById('expenseManagement').classList.add('active');
+        
+        Utils.showStatus('Editing expense as admin (no approval needed)', 'info');
+    } catch (error) {
+        console.error('Error editing expense:', error);
+        Utils.showStatus('Error loading expense for editing', 'error');
     }
 };
 
@@ -568,20 +637,29 @@ async function loadExpenses() {
                 return;
             }
             
-            listDiv.innerHTML = data.expenses.map(expense => `
-                <div class="expense-item">
-                    <div class="expense-header">
-                        <span class="expense-description">${Utils.escapeHtml(expense.description)}</span>
-                        <span class="expense-amount">₹${expense.amount.toFixed(2)}</span>
+            listDiv.innerHTML = data.expenses.map(expense => {
+                const statusBadge = expense.status === 'pending'
+                    ? '<span class="status-badge pending">⏳ Pending</span>'
+                    : expense.status === 'approved'
+                    ? '<span class="status-badge approved">✅ Approved</span>'
+                    : '<span class="status-badge rejected">❌ Rejected</span>';
+                
+                return `
+                    <div class="expense-item">
+                        <div class="expense-header">
+                            <span class="expense-description">${Utils.escapeHtml(expense.description)}</span>
+                            <span class="expense-amount">₹${expense.amount.toFixed(2)}</span>
+                        </div>
+                        <div class="expense-details">
+                            <span>📅 ${expense.date}</span>
+                            <span>👤 Paid by: ${Utils.escapeHtml(expense.paidBy)}</span>
+                            <span>👥 Split: ${expense.splitBetween.map(Utils.escapeHtml).join(', ')}</span>
+                            ${statusBadge}
+                            <button class="btn-icon" onclick="editExpenseAdmin('${expense.id}')" title="Edit">✏️</button>
+                        </div>
                     </div>
-                    <div class="expense-details">
-                        <span>📅 ${expense.date}</span>
-                        <span>👤 Paid by: ${Utils.escapeHtml(expense.paidBy)}</span>
-                        <span>👥 Split: ${expense.splitBetween.map(Utils.escapeHtml).join(', ')}</span>
-                        ${expense.status === 'pending' ? '<span class="status-badge pending">⏳ Pending</span>' : ''}
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
     } catch (error) {
         console.error('Error loading expenses:', error);

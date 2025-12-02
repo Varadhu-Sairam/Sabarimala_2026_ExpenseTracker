@@ -416,29 +416,17 @@ function updateExpense(sheet, data, isAdmin) {
     })).setMimeType(ContentService.MimeType.JSON);
   }
   
-  // Get current expense data to check ownership (now 11 columns with ID)
-  const currentData = expensesSheet.getRange(row, 1, 1, 11).getValues()[0];
+  // Get current expense data (now 13 columns with ID + edit tracking)
+  const currentData = expensesSheet.getRange(row, 1, 1, 13).getValues()[0];
   const currentStatus = currentData[6] || 'approved';
+  const originalSubmitter = currentData[7]; // Submitted By (column 8, index 7)
   
   // Get the user name from expense data (submittedBy field)
   const userName = data.expense.submittedBy || data.userName;
+  const now = new Date();
   
-  // Users can only edit their own pending expenses
-  if (!isAdmin) {
-    // Check ownership: compare with submittedBy (column 8, index 7)
-    if (currentData[7] !== userName) {
-      return ContentService.createTextOutput(JSON.stringify({
-        success: false,
-        error: 'Can only edit your own expenses'
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-    if (currentStatus !== 'pending') {
-      return ContentService.createTextOutput(JSON.stringify({
-        success: false,
-        error: 'Can only edit pending expenses'
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-  }
+  // Determine if this is editing someone else's expense
+  const isEditingOthers = (originalSubmitter !== userName);
   
   // Update the expense (skip column 1 which is ID)
   expensesSheet.getRange(row, 2).setValue(data.expense.date);
@@ -447,9 +435,21 @@ function updateExpense(sheet, data, isAdmin) {
   expensesSheet.getRange(row, 5).setValue(data.expense.paidBy);
   expensesSheet.getRange(row, 6).setValue(data.expense.splitBetween.join(','));
   
-  // If user edited, reset to pending. If admin edited, keep current status
+  // Track who edited and when (columns 12-13, indices 11-12)
+  expensesSheet.getRange(row, 12).setValue(userName);
+  expensesSheet.getRange(row, 13).setValue(now);
+  
+  // Status logic:
+  // - Admin can edit without changing status
+  // - User editing own expense: keep status or set to pending if was rejected
+  // - User editing others' expense: always set to pending for admin review
   if (!isAdmin) {
-    expensesSheet.getRange(row, 7).setValue('pending');
+    if (isEditingOthers || currentStatus === 'rejected') {
+      expensesSheet.getRange(row, 7).setValue('pending');
+      // Clear previous approval/rejection info when resetting to pending
+      expensesSheet.getRange(row, 10).setValue(''); // Approved/Rejected By
+      expensesSheet.getRange(row, 11).setValue(''); // Approved/Rejected At
+    }
   }
   
   return ContentService.createTextOutput(JSON.stringify({
@@ -792,7 +792,7 @@ function getOrCreateSheet(spreadsheet, sheetName) {
       // Store admin link when sheet is created
       // Admin link will be added separately through setup
     } else if (sheetName === 'Expenses') {
-      sheet.appendRow(['ID', 'Date', 'Description', 'Amount', 'Paid By', 'Split Between', 'Status', 'Submitted By', 'Submitted At', 'Approved/Rejected By', 'Approved/Rejected At']);
+      sheet.appendRow(['ID', 'Date', 'Description', 'Amount', 'Paid By', 'Split Between', 'Status', 'Submitted By', 'Submitted At', 'Approved/Rejected By', 'Approved/Rejected At', 'Edited By', 'Edited At']);
     } else if (sheetName === 'Settlements') {
       sheet.appendRow(['Settlement ID', 'From', 'To', 'Amount', 'Confirmed By', 'Confirmed At', 'Status']);
     }
