@@ -358,7 +358,8 @@ function getMyExpenses(sheet, userName) {
   const myExpenses = [];
   
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0] && data[i][4] && data[i][4].toLowerCase() === userName.toLowerCase()) {
+    // Filter by submittedBy (column 8, index 7) instead of paidBy
+    if (data[i][0] && data[i][7] && data[i][7].toLowerCase() === userName.toLowerCase()) {
       // Format date as YYYY-MM-DD for HTML date input
       const dateValue = data[i][1];
       const formattedDate = dateValue instanceof Date ? 
