@@ -225,16 +225,14 @@ window.rejectExpense = async function(id) {
 // === SETTLEMENT CONFIRMATION ===
 
 window.confirmSettlement = async function(from, to, amount) {
-    const confirmedBy = prompt(`Settlement Confirmation:\n${from} pays ₹${amount.toFixed(2)} to ${to}\n\nOnly ${to} or admin can confirm this settlement.\nEnter your name to confirm:`);
-    
-    if (!confirmedBy || confirmedBy.trim() === '') {
-        return;
-    }
+    // Admin can confirm any settlement without prompt
+    // Use 'admin' as the confirmedBy since this is admin.js (admin-only page)
+    const confirmedBy = 'admin';
     
     try {
         const settlementId = `${from}-${to}`;
         const result = await API.post('confirmSettlement', {
-            settlementId, from, to, amount, confirmedBy: confirmedBy.trim()
+            settlementId, from, to, amount, confirmedBy
         });
         
         if (result.success) {
