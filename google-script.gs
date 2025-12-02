@@ -18,6 +18,165 @@ const ADMIN_NAME = 'Admin';  // Change this!
 // Base URL for generating user links (set this to your GitHub Pages or hosting URL)
 const BASE_URL = 'https://your-username.github.io/your-repo/';  // Change this!
 
+// Cache expiration time in minutes
+const CACHE_EXPIRATION_MINUTES = 5;
+
+// ========================================
+// CACHING FUNCTIONS
+// ========================================
+
+function getCachedData(sheet, cacheKey) {
+  const cacheSheet = getOrCreateSheet(sheet, 'DataCache');
+  const data = cacheSheet.getDataRange().getValues();
+  
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === cacheKey) {
+      const cacheTime = new Date(data[i][1]);
+      const now = new Date();
+      const ageMinutes = (now - cacheTime) / (1000 * 60);
+      
+      if (ageMinutes < CACHE_EXPIRATION_MINUTES) {
+        return {
+          data: JSON.parse(data[i][2]),
+          age: Math.round(ageMinutes * 10) / 10,
+          cached: true
+        };
+      }
+      break;
+    }
+  }
+  return null;
+}
+
+function setCachedData(sheet, cacheKey, data) {
+  const cacheSheet = getOrCreateSheet(sheet, 'DataCache');
+  const allData = cacheSheet.getDataRange().getValues();
+  let rowIndex = -1;
+  
+  // Find existing cache entry
+  for (let i = 1; i < allData.length; i++) {
+    if (allData[i][0] === cacheKey) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+  
+  const now = new Date().toISOString();
+  const jsonData = JSON.stringify(data);
+  
+  if (rowIndex > 0) {
+    // Update existing
+    cacheSheet.getRange(rowIndex, 2).setValue(now);
+    cacheSheet.getRange(rowIndex, 3).setValue(jsonData);
+  } else {
+    // Add new
+    cacheSheet.appendRow([cacheKey, now, jsonData]);
+  }
+}
+
+function invalidateCache(sheet, cacheKey) {
+  const cacheSheet = getOrCreateSheet(sheet, 'DataCache');
+  const data = cacheSheet.getDataRange().getValues();
+  
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === cacheKey) {
+      cacheSheet.deleteRow(i + 1);
+      break;
+    }
+  }
+}
+
+function refreshAllCaches() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // Refresh participants cache
+  const participants = getParticipantsData(sheet);
+  setCachedData(sheet, 'participants', participants);
+  
+  // Refresh expenses cache (both admin and user views)
+  const allExpenses = getExpensesData(sheet, true);
+  setCachedData(sheet, 'expenses_admin', allExpenses);
+  
+  const userExpenses = getExpensesData(sheet, false);
+  setCachedData(sheet, 'expenses_user', userExpenses);
+  
+  // Refresh settlements cache
+  calculateAndStoreSettlementsWithCache(sheet);
+  
+  Logger.log('All caches refreshed at ' + new Date());
+}
+
+// ========================================
+// CACHE TRIGGER MANAGEMENT
+// ========================================
+
+/**
+ * Creates a time-based trigger to refresh caches every 4 minutes
+ * This keeps caches warm and ensures data is synced even without user requests
+ */
+function setupCacheRefreshTrigger() {
+  // Delete existing triggers to avoid duplicates
+  deleteCacheRefreshTrigger();
+  
+  // Create new trigger to run every 4 minutes
+  ScriptApp.newTrigger('refreshAllCaches')
+    .timeBased()
+    .everyMinutes(4)
+    .create();
+  
+  Logger.log('Cache refresh trigger created - will run every 4 minutes');
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    message: 'Cache refresh trigger created successfully'
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Deletes the cache refresh trigger
+ */
+function deleteCacheRefreshTrigger() {
+  const triggers = ScriptApp.getProjectTriggers();
+  
+  for (let i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'refreshAllCaches') {
+      ScriptApp.deleteTrigger(triggers[i]);
+      Logger.log('Deleted existing cache refresh trigger');
+    }
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    message: 'Cache refresh trigger deleted'
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Gets status of cache refresh trigger
+ */
+function getCacheRefreshTriggerStatus() {
+  const triggers = ScriptApp.getProjectTriggers();
+  
+  for (let i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'refreshAllCaches') {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        enabled: true,
+        trigger: {
+          function: triggers[i].getHandlerFunction(),
+          eventType: triggers[i].getEventType().toString(),
+          uniqueId: triggers[i].getUniqueId()
+        }
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    enabled: false,
+    message: 'No cache refresh trigger found'
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
 // ========================================
 
 function doGet(e) {
@@ -73,6 +232,46 @@ function doGet(e) {
         })).setMimeType(ContentService.MimeType.JSON);
       }
       return getUserLinks(sheet);
+    } else if (action === 'getCacheTriggerStatus') {
+      // Admin only
+      if (accessKey !== ADMIN_KEY) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          error: 'Admin access required'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      return getCacheRefreshTriggerStatus();
+    } else if (action === 'setupCacheTrigger') {
+      // Admin only
+      if (accessKey !== ADMIN_KEY) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          error: 'Admin access required'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      return setupCacheRefreshTrigger();
+    } else if (action === 'deleteCacheTrigger') {
+      // Admin only
+      if (accessKey !== ADMIN_KEY) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          error: 'Admin access required'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      return deleteCacheRefreshTrigger();
+    } else if (action === 'refreshCaches') {
+      // Admin only
+      if (accessKey !== ADMIN_KEY) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          error: 'Admin access required'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      refreshAllCaches();
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: 'All caches refreshed successfully'
+      })).setMimeType(ContentService.MimeType.JSON);
     }
     
     return ContentService.createTextOutput(JSON.stringify({
@@ -187,7 +386,7 @@ function doPost(e) {
   }
 }
 
-function getParticipants(sheet) {
+function getParticipantsData(sheet) {
   const participantsSheet = getOrCreateSheet(sheet, 'Participants');
   const data = participantsSheet.getDataRange().getValues();
   
@@ -197,16 +396,40 @@ function getParticipants(sheet) {
       participants.push(data[i][0]);
     }
   }
+  return participants;
+}
+
+function getParticipants(sheet) {
+  // Try cache first
+  const cached = getCachedData(sheet, 'participants');
+  if (cached) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      participants: cached.data,
+      cached: true,
+      cacheAge: cached.age
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  // Get fresh data
+  const participants = getParticipantsData(sheet);
+  
+  // Update cache
+  setCachedData(sheet, 'participants', participants);
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
-    participants: participants
+    participants: participants,
+    cached: false
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
 function addParticipant(sheet, name) {
   const participantsSheet = getOrCreateSheet(sheet, 'Participants');
   participantsSheet.appendRow([name]);
+  
+  // Invalidate participants cache
+  invalidateCache(sheet, 'participants');
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true
@@ -224,16 +447,18 @@ function removeParticipant(sheet, name) {
     }
   }
   
+  // Invalidate participants cache
+  invalidateCache(sheet, 'participants');
+  
   return ContentService.createTextOutput(JSON.stringify({
     success: true
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
-function getExpenses(sheet, accessKey) {
+function getExpensesData(sheet, isAdmin) {
   const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
   const data = expensesSheet.getDataRange().getValues();
   
-  const isAdmin = (accessKey === ADMIN_KEY);
   const expenses = [];
   
   for (let i = 1; i < data.length; i++) {
@@ -265,10 +490,34 @@ function getExpenses(sheet, accessKey) {
       }
     }
   }
+  return expenses;
+}
+
+function getExpenses(sheet, accessKey) {
+  const isAdmin = (accessKey === ADMIN_KEY);
+  const cacheKey = isAdmin ? 'expenses_admin' : 'expenses_user';
+  
+  // Try cache first
+  const cached = getCachedData(sheet, cacheKey);
+  if (cached) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      expenses: cached.data,
+      cached: true,
+      cacheAge: cached.age
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  // Get fresh data
+  const expenses = getExpensesData(sheet, isAdmin);
+  
+  // Update cache
+  setCachedData(sheet, cacheKey, expenses);
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
-    expenses: expenses
+    expenses: expenses,
+    cached: false
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -342,6 +591,10 @@ function addExpense(sheet, expense, isAdmin) {
     isAdmin ? ADMIN_NAME : '', // If auto-approved, admin is the approver
     isAdmin ? now : '' // If auto-approved, approval time is now
   ]);
+  
+  // Invalidate expense caches
+  invalidateCache(sheet, 'expenses_admin');
+  invalidateCache(sheet, 'expenses_user');
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
@@ -450,6 +703,10 @@ function updateExpense(sheet, data, isAdmin) {
     expensesSheet.getRange(row, 11).setValue(''); // Approved/Rejected At
   }
   
+  // Invalidate expense caches
+  invalidateCache(sheet, 'expenses_admin');
+  invalidateCache(sheet, 'expenses_user');
+  
   return ContentService.createTextOutput(JSON.stringify({
     success: true
   })).setMimeType(ContentService.MimeType.JSON);
@@ -488,6 +745,10 @@ function approveExpense(sheet, data) {
   expensesSheet.getRange(row, 7).setValue('approved'); // Status
   expensesSheet.getRange(row, 10).setValue(ADMIN_NAME); // Approved By
   expensesSheet.getRange(row, 11).setValue(now); // Approved At
+  
+  // Invalidate expense caches
+  invalidateCache(sheet, 'expenses_admin');
+  invalidateCache(sheet, 'expenses_user');
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
@@ -530,6 +791,10 @@ function rejectExpense(sheet, data) {
   expensesSheet.getRange(row, 7).setValue('rejected'); // Status
   expensesSheet.getRange(row, 10).setValue(ADMIN_NAME); // Rejected By
   expensesSheet.getRange(row, 11).setValue(now); // Rejected At
+  
+  // Invalidate expense caches
+  invalidateCache(sheet, 'expenses_admin');
+  invalidateCache(sheet, 'expenses_user');
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
@@ -791,6 +1056,8 @@ function getOrCreateSheet(spreadsheet, sheetName) {
       sheet.appendRow(['Settlement ID', 'From', 'To', 'Amount', 'Confirmed By', 'Confirmed At', 'Status']);
     } else if (sheetName === 'SettlementCache') {
       sheet.appendRow(['Calculated At', 'Settlements JSON', 'Expense Count']);
+    } else if (sheetName === 'DataCache') {
+      sheet.appendRow(['Cache Key', 'Timestamp', 'JSON Data']);
     }
   }
   

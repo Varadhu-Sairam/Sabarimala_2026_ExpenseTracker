@@ -42,6 +42,8 @@ window.switchTab = function(tabName, event) {
         loadExpenses();
     } else if (tabName === 'settlements') {
         loadSettlements();
+    } else if (tabName === 'cache') {
+        loadCacheSettings();
     }
 };
 
@@ -1101,3 +1103,81 @@ async function encryptData(data) {
     await loadExpenses();
     await loadSettlements();
 })();
+
+// === CACHE MANAGEMENT ===
+
+async function loadCacheSettings() {
+    try {
+        const result = await API.get('getCacheTriggerStatus');
+        const statusText = document.getElementById('triggerStatusText');
+        
+        if (result.enabled) {
+            statusText.innerHTML = '<span style="color: #27ae60;">✅ Auto-refresh enabled (every 4 minutes)</span>';
+        } else {
+            statusText.innerHTML = '<span style="color: #7f8c8d;">⏸️ Auto-refresh disabled (manual only)</span>';
+        }
+    } catch (error) {
+        document.getElementById('triggerStatusText').innerHTML = '<span style="color: #e74c3c;">❌ Error checking status</span>';
+        console.error('Error loading cache trigger status:', error);
+    }
+}
+
+window.enableCacheTrigger = async function() {
+    try {
+        Utils.showStatus('Setting up automatic cache refresh...', 'info');
+        const result = await API.get('setupCacheTrigger');
+        
+        if (result.success) {
+            Utils.showStatus('✅ Automatic cache refresh enabled! Data will be refreshed every 4 minutes.', 'success');
+            await loadCacheSettings();
+        } else {
+            Utils.showStatus(`Error: ${result.error || 'Failed to enable auto-refresh'}`, 'error');
+        }
+    } catch (error) {
+        Utils.showStatus(`Error: ${error.message}`, 'error');
+        console.error('Error enabling cache trigger:', error);
+    }
+};
+
+window.disableCacheTrigger = async function() {
+    try {
+        Utils.showStatus('Disabling automatic cache refresh...', 'info');
+        const result = await API.get('deleteCacheTrigger');
+        
+        if (result.success) {
+            Utils.showStatus('⏸️ Automatic cache refresh disabled. Cache will only refresh on data updates.', 'info');
+            await loadCacheSettings();
+        } else {
+            Utils.showStatus(`Error: ${result.error || 'Failed to disable auto-refresh'}`, 'error');
+        }
+    } catch (error) {
+        Utils.showStatus(`Error: ${error.message}`, 'error');
+        console.error('Error disabling cache trigger:', error);
+    }
+};
+
+window.refreshCacheNow = async function() {
+    try {
+        Utils.showStatus('Refreshing all caches...', 'info');
+        
+        // Call the backend to refresh caches
+        // Note: refreshAllCaches is a server function, we need to make it accessible via API
+        const response = await fetch(`${CONFIG.SCRIPT_URL}?action=refreshCaches&key=${CONFIG.ACCESS_KEY}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            Utils.showStatus('⚡ All caches refreshed successfully!', 'success');
+        } else {
+            // Fallback: Load each endpoint to populate caches
+            await Promise.all([
+                API.get('getParticipants'),
+                API.get('getExpenses'),
+                API.get('calculateSettlements')
+            ]);
+            Utils.showStatus('⚡ Caches refreshed by loading all data!', 'success');
+        }
+    } catch (error) {
+        Utils.showStatus(`Error: ${error.message}`, 'error');
+        console.error('Error refreshing caches:', error);
+    }
+};

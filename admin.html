@@ -26,6 +26,7 @@
             <button class="tab" onclick="switchTab('links', event)">🔗 User Links</button>
             <button class="tab" onclick="switchTab('expenses', event)">💰 Expenses</button>
             <button class="tab" onclick="switchTab('settlements', event)">🧮 Settlements</button>
+            <button class="tab" onclick="switchTab('cache', event)">⚡ Cache Settings</button>
         </div>
 
         <!-- Pending Approvals Tab -->
@@ -178,6 +179,45 @@
                 <h3>Confirmed Settlements</h3>
                 <div id="confirmedSettlements">
                     <!-- Confirmed settlements will be shown here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Cache Settings Tab -->
+        <div id="cache" class="tab-content">
+            <h2>Cache Management</h2>
+            <p class="note-text">
+                The app caches data for 5 minutes to improve performance. 
+                Caches are automatically cleared when data is updated (add/edit/approve/reject).
+            </p>
+            
+            <div class="form-group" style="margin-top: 20px;">
+                <h3>Automatic Cache Refresh</h3>
+                <p class="note-text">
+                    Enable automatic cache refresh to keep data synced in the background every 4 minutes.
+                    This ensures fast loading even when users haven't accessed the app recently.
+                </p>
+                
+                <div id="triggerStatus" style="margin: 15px 0; padding: 12px; background: #f5f5f5; border-radius: 8px;">
+                    <p style="margin: 0;"><strong>Status:</strong> <span id="triggerStatusText">Checking...</span></p>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button class="btn btn-primary" onclick="enableCacheTrigger()">🔄 Enable Auto-Refresh</button>
+                    <button class="btn" onclick="disableCacheTrigger()">⏸️ Disable Auto-Refresh</button>
+                    <button class="btn" onclick="refreshCacheNow()">⚡ Refresh Now</button>
+                </div>
+            </div>
+            
+            <div class="form-group" style="margin-top: 30px;">
+                <h3>Cache Information</h3>
+                <div class="note-text">
+                    <ul style="margin: 10px 0; padding-left: 20px;">
+                        <li><strong>Cache Duration:</strong> 5 minutes</li>
+                        <li><strong>Cached Data:</strong> Participants, Expenses (Admin & User views), Settlements</li>
+                        <li><strong>Auto-Invalidation:</strong> When adding, editing, approving, or rejecting expenses/participants</li>
+                        <li><strong>Auto-Refresh Interval:</strong> Every 4 minutes (when enabled)</li>
+                    </ul>
                 </div>
             </div>
         </div>
