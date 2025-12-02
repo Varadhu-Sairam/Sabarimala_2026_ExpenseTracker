@@ -103,38 +103,50 @@ window.submitExpense = async function() {
         return;
     }
     
-    const isEdit = window.editingExpenseId;
+    const form = document.getElementById('expenseForm');
+    const isEdit = form && form.dataset.editId;
+    const isEditingPending = form && form.dataset.editingPending === 'true';
     
     try {
         let result;
         if (isEdit) {
             // Update existing expense
             result = await API.post('updateExpense', {
-                id: window.editingExpenseId,
+                id: form.dataset.editId,
                 expense: { date, description, amount, paidBy, splitBetween, submittedBy: 'admin' }
             });
+            
+            // If editing a pending expense, auto-approve it after update
+            if (result.success && isEditingPending) {
+                const approveResult = await API.post('approveExpense', { id: form.dataset.editId });
+                if (approveResult.success) {
+                    Utils.showStatus('Expense updated and approved!', 'success');
+                } else {
+                    Utils.showStatus('Expense updated but approval failed', 'error');
+                }
+            } else if (result.success) {
+                Utils.showStatus('Expense updated!', 'success');
+            }
         } else {
-            // Add new expense
+            // Add new expense (admin expenses are auto-approved)
             result = await API.post('addExpense', {
                 expense: { date, description, amount, paidBy, splitBetween }
             });
+            if (result.success) {
+                Utils.showStatus('Expense added!', 'success');
+            }
         }
         
         if (result.success) {
-            Utils.showStatus(isEdit ? 'Expense updated!' : 'Expense added!', 'success');
-            
             // Clear form and edit state
             document.getElementById('expenseDescription').value = '';
             document.getElementById('expenseAmount').value = '';
             document.getElementById('expensePaidBy').value = '';
             document.querySelectorAll('#splitCheckboxes input').forEach(cb => cb.checked = false);
             
-            window.editingExpenseId = null;
-            window.editingExpenseOriginal = null;
-            const submitBtn = document.querySelector('#expenseManagement button[onclick="submitExpense()"]');
-            if (submitBtn) {
-                submitBtn.textContent = '✅ Submit Expense';
-            }
+            delete form.dataset.editId;
+            delete form.dataset.editingPending;
+            document.getElementById('submitBtn').textContent = '✅ Submit Expense';
             
             await loadExpenses();
             await loadPendingExpenses();
@@ -146,25 +158,50 @@ window.submitExpense = async function() {
     }
 };
 
-window.toggleEditMode = function(id) {
-    const item = document.getElementById(`pending-${id}`);
-    const isEditing = item.classList.contains('editing');
-    
-    if (isEditing) {
-        // Cancel edit - reload to reset
-        loadPendingExpenses();
-    } else {
-        // Enable edit mode
-        item.classList.add('editing');
-        item.querySelectorAll('input').forEach(input => input.disabled = false);
+window.editPendingExpense = async function(id) {
+    try {
+        // Load pending expenses data
+        const data = await API.get('getPendingExpenses');
         
-        // Update buttons
-        const actionsDiv = item.querySelector('.expense-actions');
-        actionsDiv.innerHTML = `
-            <button class="btn btn-primary btn-small" onclick="approveEditedExpense('${id}')">✓ Save & Approve</button>
-            <button class="btn btn-secondary btn-small" onclick="toggleEditMode('${id}')">✕ Cancel</button>
-            <button class="btn btn-danger btn-small" onclick="rejectExpense('${id}')">🗑️ Reject</button>
-        `;
+        if (!data.success) {
+            alert('Error loading expense data');
+            return;
+        }
+        
+        // Find the expense
+        const expense = data.pending.find(e => e.id == id);
+        
+        if (!expense) {
+            alert('Expense not found');
+            return;
+        }
+        
+        // Pre-fill the form
+        document.getElementById('expenseDate').value = expense.date;
+        document.getElementById('expenseDescription').value = expense.description;
+        document.getElementById('expenseAmount').value = expense.amount;
+        document.getElementById('expensePaidBy').value = expense.paidBy;
+        
+        // Check split participants
+        const checkboxes = document.querySelectorAll('#splitCheckboxes input[type="checkbox"]');
+        checkboxes.forEach(cb => {
+            cb.checked = expense.splitBetween.some(person => person.toLowerCase() === cb.value.toLowerCase());
+        });
+        
+        // Store the id for update and mark as editing pending
+        const form = document.getElementById('expenseForm');
+        form.dataset.editId = id;
+        form.dataset.editingPending = 'true';
+        document.getElementById('submitBtn').textContent = '✏️ Update & Approve';
+        
+        // Switch to expenses tab
+        switchTab('expenses', null);
+        
+        // Scroll to form
+        document.getElementById('expenseForm').scrollIntoView({ behavior: 'smooth' });
+    } catch (error) {
+        console.error('Error editing pending expense:', error);
+        alert('Error loading expense for editing');
     }
 };
 
@@ -234,46 +271,7 @@ window.editExpenseAdmin = async function(id) {
     }
 };
 
-window.approveEditedExpense = async function(id) {
-    try {
-        // Get edited values
-        const date = document.getElementById(`date-${id}`).value;
-        const description = document.getElementById(`desc-${id}`).value;
-        const amount = parseFloat(document.getElementById(`amt-${id}`).value);
-        const paidBy = document.getElementById(`paidby-${id}`).value;
-        const splitString = document.getElementById(`split-${id}`).value;
-        const splitBetween = splitString.split(',').map(s => s.trim()).filter(s => s);
-        
-        if (!date || !description || !amount || !paidBy || splitBetween.length === 0) {
-            Utils.showStatus('Please fill all fields', 'error');
-            return;
-        }
-        
-        // Update expense first
-        const updateResult = await API.post('updateExpense', {
-            id,
-            expense: { date, description, amount, paidBy, splitBetween }
-        });
-        
-        if (!updateResult.success) {
-            Utils.showStatus('Error: ' + (updateResult.error || 'Failed to update expense'), 'error');
-            return;
-        }
-        
-        // Then approve
-        const approveResult = await API.post('approveExpense', { id });
-        
-        if (approveResult.success) {
-            Utils.showStatus('Expense updated and approved!', 'success');
-            await loadPendingExpenses();
-            await loadExpenses();
-        } else {
-            Utils.showStatus('Error: ' + (approveResult.error || 'Failed to approve expense'), 'error');
-        }
-    } catch (error) {
-        Utils.showStatus('Error processing expense', 'error');
-    }
-};
+// approveEditedExpense function removed - now using form-based edit flow via editPendingExpense
 
 window.rejectExpense = async function(id) {
     if (!confirm('Reject this expense?')) return;
@@ -530,18 +528,18 @@ async function loadPendingExpenses() {
                 return `
                 <div class="expense-item pending" id="pending-${expense.id}">
                     <div class="expense-header">
-                        <input type="text" class="edit-field" id="desc-${expense.id}" value="${Utils.escapeHtml(expense.description)}" disabled />
-                        <input type="number" class="edit-field edit-amount" id="amt-${expense.id}" value="${expense.amount}" step="0.01" disabled />
+                        <span class="expense-description">${Utils.escapeHtml(expense.description)}</span>
+                        <span class="expense-amount">₹${expense.amount.toFixed(2)}</span>
                     </div>
                     <div class="expense-details">
-                        <span>📅 <input type="date" class="edit-field edit-date" id="date-${expense.id}" value="${expense.date}" disabled /></span>
-                        <span>👤 Paid by: <input type="text" class="edit-field" id="paidby-${expense.id}" value="${Utils.escapeHtml(expense.paidBy)}" disabled /></span>
-                        <span>👥 Split: <input type="text" class="edit-field" id="split-${expense.id}" value="${expense.splitBetween.map(Utils.escapeHtml).join(', ')}" disabled /></span>
+                        <span>📅 ${expense.date}</span>
+                        <span>👤 Paid by: ${Utils.escapeHtml(expense.paidBy)}</span>
+                        <span>👥 Split: ${expense.splitBetween.map(Utils.escapeHtml).join(', ')}</span>
                         ${submittedInfo}
                     </div>
                     <div class="expense-actions">
                         <button class="btn btn-primary btn-small" onclick="approveExpense('${expense.id}')">✓ Approve</button>
-                        <button class="btn btn-secondary btn-small" onclick="toggleEditMode('${expense.id}')">✏️ Edit</button>
+                        <button class="btn btn-secondary btn-small" onclick="editPendingExpense('${expense.id}')">✏️ Edit</button>
                         <button class="btn btn-danger btn-small" onclick="rejectExpense('${expense.id}')">🗑️ Reject</button>
                     </div>
                 </div>
