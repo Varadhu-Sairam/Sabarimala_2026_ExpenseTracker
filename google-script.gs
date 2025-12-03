@@ -591,8 +591,12 @@ function addExpense(sheet, expense, isAdmin) {
   invalidateCache(sheet, 'expenses_admin');
   invalidateCache(sheet, 'expenses_user');
   
-  // Invalidate settlement cache since expenses changed
+  // Invalidate settlement cache and recalculate immediately since expenses changed
   invalidateSettlementCache(sheet);
+  if (isAdmin || status === 'approved') {
+    // If expense is approved, recalculate settlements immediately
+    calculateAndStoreSettlements(sheet);
+  }
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
@@ -705,8 +709,12 @@ function updateExpense(sheet, data, isAdmin) {
   invalidateCache(sheet, 'expenses_admin');
   invalidateCache(sheet, 'expenses_user');
   
-  // Invalidate settlement cache since expenses changed
+  // Invalidate settlement cache and recalculate immediately since expenses changed
   invalidateSettlementCache(sheet);
+  if (isAdmin || currentStatus === 'approved') {
+    // If expense is/was approved, recalculate settlements immediately
+    calculateAndStoreSettlements(sheet);
+  }
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true
@@ -751,8 +759,9 @@ function approveExpense(sheet, data) {
   invalidateCache(sheet, 'expenses_admin');
   invalidateCache(sheet, 'expenses_user');
   
-  // Invalidate settlement cache since expenses changed
+  // Invalidate settlement cache and recalculate immediately since approved expense affects settlements
   invalidateSettlementCache(sheet);
+  calculateAndStoreSettlements(sheet);
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
@@ -800,8 +809,9 @@ function rejectExpense(sheet, data) {
   invalidateCache(sheet, 'expenses_admin');
   invalidateCache(sheet, 'expenses_user');
   
-  // Invalidate settlement cache since expenses changed
+  // Invalidate settlement cache and recalculate immediately since rejected expense affects settlements
   invalidateSettlementCache(sheet);
+  calculateAndStoreSettlements(sheet);
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
