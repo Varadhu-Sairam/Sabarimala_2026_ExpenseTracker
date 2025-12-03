@@ -1108,11 +1108,15 @@ async function encryptData(data) {
 // === INITIALIZATION ===
 
 (async function init() {
+    // Show loading overlay immediately at the very start
+    Utils.showLoading('Loading dashboard...');
+    
     // Parse URL to get encrypted token
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     
     if (!token) {
+        Utils.hideLoading();
         document.getElementById('statusMessage').innerHTML = 
             '<div class="status-message status-error">Invalid admin link. Please use the link generated during setup.</div>';
         return;
@@ -1121,6 +1125,7 @@ async function encryptData(data) {
     // Decrypt token
     const decryptedData = await decryptData(token);
     if (!decryptedData || !decryptedData.key || !decryptedData.apiUrl) {
+        Utils.hideLoading();
         document.getElementById('statusMessage').innerHTML = 
             '<div class="status-message status-error">Invalid or corrupted admin link. Please generate a new one.</div>';
         return;
@@ -1150,9 +1155,6 @@ async function encryptData(data) {
     
     // Set today's date
     document.getElementById('expenseDate').valueAsDate = new Date();
-    
-    // Show loading overlay for initial data load
-    Utils.showLoading('Loading dashboard...');
     
     // Load data
     await loadPendingExpenses();
