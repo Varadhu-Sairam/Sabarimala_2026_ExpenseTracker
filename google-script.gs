@@ -259,19 +259,6 @@ function doGet(e) {
         })).setMimeType(ContentService.MimeType.JSON);
       }
       return deleteCacheRefreshTrigger();
-    } else if (action === 'refreshCaches') {
-      // Admin only
-      if (accessKey !== ADMIN_KEY) {
-        return ContentService.createTextOutput(JSON.stringify({
-          success: false,
-          error: 'Admin access required'
-        })).setMimeType(ContentService.MimeType.JSON);
-      }
-      refreshAllCaches();
-      return ContentService.createTextOutput(JSON.stringify({
-        success: true,
-        message: 'All caches refreshed successfully'
-      })).setMimeType(ContentService.MimeType.JSON);
     }
     
     return ContentService.createTextOutput(JSON.stringify({

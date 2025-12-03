@@ -1166,14 +1166,15 @@ window.refreshCacheNow = async function() {
     try {
         Utils.showStatus('Refreshing all caches...', 'info');
         
-        // Call the backend to refresh caches
-        const result = await API.get('refreshCaches');
+        // Refresh caches by calling all the data endpoints
+        // This forces the backend to recalculate and cache fresh data
+        await Promise.all([
+            API.get('getParticipants'),
+            API.get('getExpenses'),
+            API.get('calculateSettlements')
+        ]);
         
-        if (result.success) {
-            Utils.showStatus('⚡ All caches refreshed successfully!', 'success');
-        } else {
-            Utils.showStatus(`Error: ${result.error || 'Failed to refresh caches'}`, 'error');
-        }
+        Utils.showStatus('⚡ All caches refreshed successfully!', 'success');
     } catch (error) {
         Utils.showStatus(`Error: ${error.message}`, 'error');
         console.error('Error refreshing caches:', error);
