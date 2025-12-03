@@ -107,6 +107,7 @@ window.submitExpense = async function() {
     const isEdit = form && form.dataset.editId;
     
     try {
+        Utils.showLoading(isEdit ? 'Updating expense...' : 'Submitting expense...');
         let result;
         if (isEdit) {
             // Update existing expense
@@ -142,6 +143,8 @@ window.submitExpense = async function() {
         }
     } catch (error) {
         Utils.showStatus('Error submitting expense', 'error');
+    } finally {
+        Utils.hideLoading();
     }
 };
 
@@ -190,6 +193,7 @@ window.confirmSettlementWithAmount = async function(from, to, maxAmount, settlem
     }
     
     try {
+        Utils.showLoading('Submitting expense...');
         const settlementIdStr = `${from}-${to}`;
         const result = await API.post('confirmSettlement', {
             settlementId: settlementIdStr, 
@@ -211,6 +215,8 @@ window.confirmSettlementWithAmount = async function(from, to, maxAmount, settlem
         }
     } catch (error) {
         Utils.showStatus('Error confirming settlement', 'error');
+    } finally {
+        Utils.hideLoading();
     }
 };
 

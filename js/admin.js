@@ -209,6 +209,7 @@ window.editPendingExpense = async function(id) {
 
 window.approveExpense = async function(id) {
     try {
+        Utils.showLoading('Approving expense...');
         const result = await API.post('approveExpense', { id });
         
         if (result.success) {
@@ -220,6 +221,8 @@ window.approveExpense = async function(id) {
         }
     } catch (error) {
         Utils.showStatus('Error approving expense', 'error');
+    } finally {
+        Utils.hideLoading();
     }
 };
 
@@ -277,6 +280,7 @@ window.rejectExpense = async function(id) {
     if (!confirm('Reject this expense?')) return;
     
     try {
+        Utils.showLoading('Rejecting expense...');
         const result = await API.post('rejectExpense', { id });
         
         if (result.success) {
@@ -287,6 +291,8 @@ window.rejectExpense = async function(id) {
         }
     } catch (error) {
         Utils.showStatus('Error rejecting expense', 'error');
+    } finally {
+        Utils.hideLoading();
     }
 };
 
@@ -318,6 +324,7 @@ window.confirmSettlement = async function(from, to, amount) {
 
 window.approveRegistration = async function(name) {
     try {
+        Utils.showLoading('Approving registration...');
         Utils.showStatus('Approving and generating personalized user link...', 'info');
         
         // Check if admin link has userKey (required for generating user links)
@@ -379,12 +386,15 @@ window.approveRegistration = async function(name) {
     } catch (error) {
         Utils.showStatus('Error approving registration', 'error');
         console.error(error);
+    } finally {
+        Utils.hideLoading();
     }
 };
 
 window.rejectRegistration = async function(name) {
     if (!confirm(`Reject registration request from ${name}?`)) return;
     try {
+        Utils.showLoading('Rejecting registration...');
         const result = await API.post('rejectRegistration', { name: name });
         if (result.success) {
             Utils.showStatus('Registration rejected', 'success');
@@ -394,6 +404,8 @@ window.rejectRegistration = async function(name) {
         }
     } catch (error) {
         Utils.showStatus('Error rejecting registration', 'error');
+    } finally {
+        Utils.hideLoading();
     }
 };
 
@@ -533,6 +545,7 @@ async function loadUserLinks() {
 
 async function loadPendingExpenses() {
     try {
+        Utils.showLoading('Loading pending expenses...');
         const data = await API.get('getPendingExpenses');
         
         if (data.success) {
@@ -579,6 +592,8 @@ async function loadPendingExpenses() {
         }
     } catch (error) {
         console.error('Error loading pending expenses:', error);
+    } finally {
+        Utils.hideLoading();
     }
 }
 
@@ -600,6 +615,7 @@ window.deselectAllParticipants = function() {
 
 async function loadParticipants() {
     try {
+        Utils.showLoading('Loading participants...');
         const data = await API.get('getParticipants');
         
         if (data.success) {
@@ -651,6 +667,8 @@ async function loadParticipants() {
         }
     } catch (error) {
         console.error('Error loading participants:', error);
+    } finally {
+        Utils.hideLoading();
     }
 }
 
@@ -1164,6 +1182,7 @@ window.disableCacheTrigger = async function() {
 
 window.refreshCacheNow = async function() {
     try {
+        Utils.showLoading('Refreshing caches...');
         Utils.showStatus('Refreshing all caches...', 'info');
         
         // Refresh caches by calling all the data endpoints
@@ -1178,5 +1197,7 @@ window.refreshCacheNow = async function() {
     } catch (error) {
         Utils.showStatus(`Error: ${error.message}`, 'error');
         console.error('Error refreshing caches:', error);
+    } finally {
+        Utils.hideLoading();
     }
 };

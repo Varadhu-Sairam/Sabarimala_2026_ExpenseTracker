@@ -26,6 +26,24 @@ export const Utils = {
         }, 5000);
     },
     
+    showLoading(text = 'Please wait...') {
+        const overlay = document.getElementById('loadingOverlay');
+        const label = document.getElementById('loadingText');
+        if (overlay) {
+            if (label) label.textContent = text;
+            overlay.classList.add('active');
+            document.body.style.pointerEvents = 'none';
+        }
+    },
+    
+    hideLoading() {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) {
+            overlay.classList.remove('active');
+            document.body.style.pointerEvents = '';
+        }
+    },
+    
     escapeHtml(unsafe) {
         if (typeof unsafe !== 'string') return '';
         return unsafe
