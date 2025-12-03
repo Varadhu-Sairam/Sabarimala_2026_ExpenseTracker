@@ -86,6 +86,14 @@ function invalidateCache(sheet, cacheKey) {
   }
 }
 
+function invalidateSettlementCache(sheet) {
+  const cacheSheet = getOrCreateSheet(sheet, 'SettlementCache');
+  if (cacheSheet.getLastRow() > 1) {
+    cacheSheet.clear();
+    cacheSheet.appendRow(['Calculated At', 'Settlements JSON', 'Expense Count']);
+  }
+}
+
 function refreshAllCaches() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet();
   
@@ -583,6 +591,9 @@ function addExpense(sheet, expense, isAdmin) {
   invalidateCache(sheet, 'expenses_admin');
   invalidateCache(sheet, 'expenses_user');
   
+  // Invalidate settlement cache since expenses changed
+  invalidateSettlementCache(sheet);
+  
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
     id: id,
@@ -694,6 +705,9 @@ function updateExpense(sheet, data, isAdmin) {
   invalidateCache(sheet, 'expenses_admin');
   invalidateCache(sheet, 'expenses_user');
   
+  // Invalidate settlement cache since expenses changed
+  invalidateSettlementCache(sheet);
+  
   return ContentService.createTextOutput(JSON.stringify({
     success: true
   })).setMimeType(ContentService.MimeType.JSON);
@@ -736,6 +750,9 @@ function approveExpense(sheet, data) {
   // Invalidate expense caches
   invalidateCache(sheet, 'expenses_admin');
   invalidateCache(sheet, 'expenses_user');
+  
+  // Invalidate settlement cache since expenses changed
+  invalidateSettlementCache(sheet);
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
@@ -782,6 +799,9 @@ function rejectExpense(sheet, data) {
   // Invalidate expense caches
   invalidateCache(sheet, 'expenses_admin');
   invalidateCache(sheet, 'expenses_user');
+  
+  // Invalidate settlement cache since expenses changed
+  invalidateSettlementCache(sheet);
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
