@@ -62,6 +62,8 @@ window.addParticipant = async function() {
         return;
     }
     
+    Utils.showLoading('Adding participant...');
+    
     try {
         const result = await API.post('addParticipant', { name });
         
@@ -74,11 +76,15 @@ window.addParticipant = async function() {
         }
     } catch (error) {
         Utils.showStatus('Error adding participant', 'error');
+    } finally {
+        Utils.hideLoading();
     }
 };
 
 window.removeParticipant = async function(name) {
     if (!confirm(`Remove ${name}?`)) return;
+    
+    Utils.showLoading('Removing participant...');
     
     try {
         const result = await API.post('removeParticipant', { name });
@@ -91,6 +97,8 @@ window.removeParticipant = async function(name) {
         }
     } catch (error) {
         Utils.showStatus('Error removing participant', 'error');
+    } finally {
+        Utils.hideLoading();
     }
 };
 
@@ -113,6 +121,8 @@ window.submitExpense = async function() {
     const form = document.getElementById('expenseForm');
     const isEdit = form && form.dataset.editId;
     const isEditingPending = form && form.dataset.editingPending === 'true';
+    
+    Utils.showLoading(isEdit ? 'Updating expense...' : 'Adding expense...');
     
     try {
         let result;
@@ -162,10 +172,14 @@ window.submitExpense = async function() {
         }
     } catch (error) {
         Utils.showStatus(`Error ${isEdit ? 'updating' : 'adding'} expense`, 'error');
+    } finally {
+        Utils.hideLoading();
     }
 };
 
 window.editPendingExpense = async function(id) {
+    Utils.showLoading('Loading expense...');
+    
     try {
         // Load pending expenses data
         const data = await API.get('getPendingExpenses');
@@ -209,6 +223,8 @@ window.editPendingExpense = async function(id) {
     } catch (error) {
         console.error('Error editing pending expense:', error);
         alert('Error loading expense for editing');
+    } finally {
+        Utils.hideLoading();
     }
 };
 
@@ -317,6 +333,8 @@ window.confirmSettlement = async function(from, to, amount) {
     // Use 'admin' as the confirmedBy since this is admin.js (admin-only page)
     const confirmedBy = 'admin';
     
+    Utils.showLoading('Confirming settlement...');
+    
     try {
         const settlementId = `${from}-${to}`;
         const result = await API.post('confirmSettlement', {
@@ -331,6 +349,8 @@ window.confirmSettlement = async function(from, to, amount) {
         }
     } catch (error) {
         Utils.showStatus('Error confirming settlement', 'error');
+    } finally {
+        Utils.hideLoading();
     }
 };
 
@@ -493,6 +513,8 @@ window.addSharedUserLink = async function() {
         return;
     }
     
+    Utils.showLoading('Adding user link...');
+    
     try {
         // Extract token from link
         const urlParams = new URLSearchParams(link.split('?')[1]);
@@ -527,6 +549,8 @@ window.addSharedUserLink = async function() {
     } catch (error) {
         Utils.showStatus('Error adding user link: ' + error.message, 'error');
         console.error(error);
+    } finally {
+        Utils.hideLoading();
     }
 };
 

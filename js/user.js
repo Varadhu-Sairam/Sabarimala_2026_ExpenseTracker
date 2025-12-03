@@ -17,6 +17,8 @@ window.registerUser = async function() {
         return;
     }
     
+    Utils.showLoading('Submitting registration...');
+    
     try {
         // Check if user already exists as a participant (case-insensitive)
         const participantsData = await API.get('getParticipants');
@@ -51,6 +53,8 @@ window.registerUser = async function() {
     } catch (error) {
         document.getElementById('registrationStatus').innerHTML = 
             '<div class="status-message status-error">Error submitting registration: ' + error.message + '</div>';
+    } finally {
+        Utils.hideLoading();
     }
 };
 
