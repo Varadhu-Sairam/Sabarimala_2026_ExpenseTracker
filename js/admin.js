@@ -9,6 +9,12 @@ import { API } from './api.js';
 // === TAB NAVIGATION ===
 
 window.switchTab = function(tabName, event) {
+    // Show loading overlay immediately for data-loading tabs
+    const dataLoadingTabs = ['pending', 'registrations', 'summary', 'balance', 'participants', 'links', 'expenses', 'settlements'];
+    if (dataLoadingTabs.includes(tabName)) {
+        Utils.showLoading('Loading...');
+    }
+    
     document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     
