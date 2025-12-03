@@ -227,6 +227,7 @@ window.approveExpense = async function(id) {
 
 window.editExpenseAdmin = async function(id) {
     try {
+        Utils.showLoading('Loading expense details...');
         // Load expense data
         const data = await API.get('getExpenses');
         
@@ -269,6 +270,8 @@ window.editExpenseAdmin = async function(id) {
     } catch (error) {
         console.error('Error editing expense:', error);
         Utils.showStatus('Error loading expense for editing', 'error');
+    } finally {
+        Utils.hideLoading();
     }
 };
 
@@ -670,6 +673,7 @@ async function loadParticipants() {
 
 async function loadExpenses() {
     try {
+        Utils.showLoading('Loading expenses...');
         const data = await API.get('getExpenses');
         
         if (data.success) {
@@ -708,6 +712,8 @@ async function loadExpenses() {
         }
     } catch (error) {
         console.error('Error loading expenses:', error);
+    } finally {
+        Utils.hideLoading();
     }
 }
 
