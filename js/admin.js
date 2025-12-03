@@ -349,20 +349,26 @@ window.approveRegistration = async function(name) {
         });
         
         if (result.success) {
-            Utils.showStatus(`✅ Registration approved for ${name}! Personalized link generated.`, 'success');
-            
-            // Show the generated link to admin
-            const linkInfo = document.createElement('div');
-            linkInfo.className = 'status-message status-success';
-            linkInfo.style.marginTop = '10px';
-            linkInfo.innerHTML = `
-                <strong>Personalized link for ${Utils.escapeHtml(name)}:</strong><br>
-                <div style="word-break: break-all; margin: 10px 0; padding: 10px; background: white; border-radius: 4px;">
-                    ${Utils.escapeHtml(userLink)}
-                </div>
-                <button class="btn btn-small" onclick="copyLinkToClipboard('${Utils.escapeHtml(userLink)}')">📋 Copy Link</button>
-            `;
-            document.getElementById('statusMessage').appendChild(linkInfo);
+            // Automatically copy link to clipboard
+            try {
+                await navigator.clipboard.writeText(userLink);
+                Utils.showStatus(`✅ Registration approved for ${name}! Link copied to clipboard. You can paste and share it now.`, 'success');
+            } catch (clipboardError) {
+                // Fallback if clipboard fails - show the link
+                Utils.showStatus(`✅ Registration approved for ${name}! Personalized link generated.`, 'success');
+                
+                const linkInfo = document.createElement('div');
+                linkInfo.className = 'status-message status-success';
+                linkInfo.style.marginTop = '10px';
+                linkInfo.innerHTML = `
+                    <strong>Personalized link for ${Utils.escapeHtml(name)}:</strong><br>
+                    <div style="word-break: break-all; margin: 10px 0; padding: 10px; background: white; border-radius: 4px;">
+                        ${Utils.escapeHtml(userLink)}
+                    </div>
+                    <button class="btn btn-small" onclick="copyLinkToClipboard('${Utils.escapeHtml(userLink)}')">📋 Copy Link</button>
+                `;
+                document.getElementById('statusMessage').appendChild(linkInfo);
+            }
             
             await loadPendingRegistrations();
             await loadParticipants();
