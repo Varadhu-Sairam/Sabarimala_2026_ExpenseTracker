@@ -115,6 +115,183 @@ function refreshAllCaches() {
 }
 
 // ========================================
+// AUDIT TRAIL FUNCTIONS
+// ========================================
+
+/**
+ * Logs all expense-related actions to audit trail
+ * @param {Sheet} sheet - The spreadsheet object
+ * @param {Object} auditData - The audit data object
+ */
+function logExpenseAudit(sheet, auditData) {
+  const auditSheet = getOrCreateSheet(sheet, 'ExpenseAuditLog');
+  
+  // Ensure headers exist
+  if (auditSheet.getLastRow() === 0) {
+    auditSheet.appendRow([
+      'Audit ID',
+      'Expense ID',
+      'Action',
+      'Performed By',
+      'Performed At',
+      'Status',
+      'Old Data',
+      'New Data',
+      'Notes'
+    ]);
+  }
+  
+  // Generate auto-increment audit ID
+  const data = auditSheet.getDataRange().getValues();
+  let maxId = 0;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] && typeof data[i][0] === 'number') {
+      maxId = Math.max(maxId, data[i][0]);
+    }
+  }
+  const auditId = maxId + 1;
+  
+  // Convert data objects to JSON strings for storage
+  const oldDataStr = auditData.oldData ? JSON.stringify(auditData.oldData) : '';
+  const newDataStr = auditData.data ? JSON.stringify(auditData.data) : (auditData.newData ? JSON.stringify(auditData.newData) : '');
+  
+  auditSheet.appendRow([
+    auditId,
+    auditData.expenseId,
+    auditData.action,
+    auditData.performedBy,
+    auditData.performedAt,
+    auditData.status,
+    oldDataStr,
+    newDataStr,
+    auditData.notes || ''
+  ]);
+}
+
+/**
+ * Logs settlement confirmations to audit trail
+ */
+function logSettlementAudit(sheet, auditData) {
+  const auditSheet = getOrCreateSheet(sheet, 'SettlementAuditLog');
+  
+  // Ensure headers exist
+  if (auditSheet.getLastRow() === 0) {
+    auditSheet.appendRow([
+      'Audit ID',
+      'Settlement ID',
+      'Action',
+      'From',
+      'To',
+      'Amount',
+      'Confirmed By',
+      'Confirmed At',
+      'Notes'
+    ]);
+  }
+  
+  // Generate auto-increment audit ID
+  const data = auditSheet.getDataRange().getValues();
+  let maxId = 0;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] && typeof data[i][0] === 'number') {
+      maxId = Math.max(maxId, data[i][0]);
+    }
+  }
+  const auditId = maxId + 1;
+  
+  auditSheet.appendRow([
+    auditId,
+    auditData.settlementId,
+    auditData.action,
+    auditData.from,
+    auditData.to,
+    auditData.amount,
+    auditData.confirmedBy,
+    auditData.confirmedAt,
+    auditData.notes || ''
+  ]);
+}
+
+/**
+ * Retrieves audit log for a specific expense or all expenses
+ */
+function getExpenseAuditLog(sheet, expenseId) {
+  const auditSheet = getOrCreateSheet(sheet, 'ExpenseAuditLog');
+  
+  if (auditSheet.getLastRow() === 0) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      auditLog: []
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  const data = auditSheet.getDataRange().getValues();
+  const auditLog = [];
+  
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0]) {
+      // If expenseId is provided, filter by it; otherwise return all
+      if (!expenseId || data[i][1] == expenseId) {
+        auditLog.push({
+          auditId: data[i][0],
+          expenseId: data[i][1],
+          action: data[i][2],
+          performedBy: data[i][3],
+          performedAt: data[i][4],
+          status: data[i][5],
+          oldData: data[i][6] ? JSON.parse(data[i][6]) : null,
+          newData: data[i][7] ? JSON.parse(data[i][7]) : null,
+          notes: data[i][8] || ''
+        });
+      }
+    }
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    auditLog: auditLog
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Retrieves settlement audit log
+ */
+function getSettlementAuditLog(sheet) {
+  const auditSheet = getOrCreateSheet(sheet, 'SettlementAuditLog');
+  
+  if (auditSheet.getLastRow() === 0) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      auditLog: []
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  const data = auditSheet.getDataRange().getValues();
+  const auditLog = [];
+  
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0]) {
+      auditLog.push({
+        auditId: data[i][0],
+        settlementId: data[i][1],
+        action: data[i][2],
+        from: data[i][3],
+        to: data[i][4],
+        amount: data[i][5],
+        confirmedBy: data[i][6],
+        confirmedAt: data[i][7],
+        notes: data[i][8] || ''
+      });
+    }
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    auditLog: auditLog
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ========================================
 // CACHE TRIGGER MANAGEMENT
 // ========================================
 
@@ -249,6 +426,25 @@ function doGet(e) {
         })).setMimeType(ContentService.MimeType.JSON);
       }
       return getArchivedParticipants(sheet);
+    } else if (action === 'getExpenseAuditLog') {
+      // Admin only
+      if (accessKey !== ADMIN_KEY) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          error: 'Admin access required'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      const expenseId = e.parameter.expenseId;
+      return getExpenseAuditLog(sheet, expenseId);
+    } else if (action === 'getSettlementAuditLog') {
+      // Admin only
+      if (accessKey !== ADMIN_KEY) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          error: 'Admin access required'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      return getSettlementAuditLog(sheet);
     } else if (action === 'getCacheTriggerStatus') {
       // Admin only
       if (accessKey !== ADMIN_KEY) {
@@ -833,6 +1029,23 @@ function addExpense(sheet, expense, isAdmin) {
     isAdmin ? now : '' // If auto-approved, approval time is now
   ]);
   
+  // Log to audit trail
+  logExpenseAudit(sheet, {
+    expenseId: id,
+    action: 'CREATE',
+    performedBy: submittedBy,
+    performedAt: now,
+    status: status,
+    data: {
+      date: expense.date,
+      description: expense.description,
+      amount: expense.amount,
+      paidBy: expense.paidBy,
+      splitBetween: expense.splitBetween.join(',')
+    },
+    notes: isAdmin ? 'Admin created (auto-approved)' : 'User submitted (pending approval)'
+  });
+  
   // Invalidate expense caches
   invalidateCache(sheet, 'expenses_admin');
   invalidateCache(sheet, 'expenses_user');
@@ -923,6 +1136,16 @@ function updateExpense(sheet, data, isAdmin) {
   const currentStatus = currentData[6] || 'approved';
   const originalSubmitter = currentData[7]; // Submitted By (column 8, index 7)
   
+  // Capture old values for audit log
+  const oldData = {
+    date: currentData[1],
+    description: currentData[2],
+    amount: currentData[3],
+    paidBy: currentData[4],
+    splitBetween: currentData[5],
+    status: currentStatus
+  };
+  
   // Get the user name from expense data (submittedBy field)
   const userName = data.expense.submittedBy || data.userName;
   const now = new Date();
@@ -944,12 +1167,31 @@ function updateExpense(sheet, data, isAdmin) {
   // Status logic:
   // - Admin can edit without changing status
   // - User editing ANY expense: always set to pending for admin approval
+  const newStatus = !isAdmin ? 'pending' : currentStatus;
   if (!isAdmin) {
     expensesSheet.getRange(row, 7).setValue('pending');
     // Clear previous approval/rejection info when resetting to pending
     expensesSheet.getRange(row, 10).setValue(''); // Approved/Rejected By
     expensesSheet.getRange(row, 11).setValue(''); // Approved/Rejected At
   }
+  
+  // Log to audit trail
+  logExpenseAudit(sheet, {
+    expenseId: data.id,
+    action: 'EDIT',
+    performedBy: userName,
+    performedAt: now,
+    status: newStatus,
+    oldData: oldData,
+    newData: {
+      date: data.expense.date,
+      description: data.expense.description,
+      amount: data.expense.amount,
+      paidBy: data.expense.paidBy,
+      splitBetween: data.expense.splitBetween.join(',')
+    },
+    notes: isAdmin ? 'Admin edit' : (isEditingOthers ? 'User edited others expense (pending re-approval)' : 'User edited own expense (pending re-approval)')
+  });
   
   // Invalidate expense caches
   invalidateCache(sheet, 'expenses_admin');
@@ -997,9 +1239,29 @@ function approveExpense(sheet, data) {
   
   const now = new Date();
   
+  // Capture current data for audit log
+  const currentData = expensesSheet.getRange(row, 1, 1, 13).getValues()[0];
+  
   expensesSheet.getRange(row, 7).setValue('approved'); // Status
   expensesSheet.getRange(row, 10).setValue(ADMIN_NAME); // Approved By
   expensesSheet.getRange(row, 11).setValue(now); // Approved At
+  
+  // Log to audit trail
+  logExpenseAudit(sheet, {
+    expenseId: data.id,
+    action: 'APPROVE',
+    performedBy: ADMIN_NAME,
+    performedAt: now,
+    status: 'approved',
+    data: {
+      date: currentData[1],
+      description: currentData[2],
+      amount: currentData[3],
+      paidBy: currentData[4],
+      splitBetween: currentData[5]
+    },
+    notes: 'Admin approved expense'
+  });
   
   // Invalidate expense caches
   invalidateCache(sheet, 'expenses_admin');
@@ -1046,10 +1308,30 @@ function rejectExpense(sheet, data) {
   
   const now = new Date();
   
+  // Capture current data for audit log
+  const currentData = expensesSheet.getRange(row, 1, 1, 13).getValues()[0];
+  
   // Change status to rejected instead of deleting (preserves audit trail)
   expensesSheet.getRange(row, 7).setValue('rejected'); // Status
   expensesSheet.getRange(row, 10).setValue(ADMIN_NAME); // Rejected By
   expensesSheet.getRange(row, 11).setValue(now); // Rejected At
+  
+  // Log to audit trail
+  logExpenseAudit(sheet, {
+    expenseId: data.id,
+    action: 'REJECT',
+    performedBy: ADMIN_NAME,
+    performedAt: now,
+    status: 'rejected',
+    data: {
+      date: currentData[1],
+      description: currentData[2],
+      amount: currentData[3],
+      paidBy: currentData[4],
+      splitBetween: currentData[5]
+    },
+    notes: 'Admin rejected expense'
+  });
   
   // Invalidate expense caches
   invalidateCache(sheet, 'expenses_admin');
@@ -1266,11 +1548,14 @@ function confirmSettlement(sheet, data, isAdmin) {
     }
   }
   
+  const confirmTime = new Date();
+  const confirmTimeStr = confirmTime.toISOString();
+  
   if (rowIndex > 0) {
     // Update existing row with confirmed amount
     settlementsSheet.getRange(rowIndex, 4).setValue(data.amount);  // Update amount
     settlementsSheet.getRange(rowIndex, 5).setValue(data.confirmedBy);
-    settlementsSheet.getRange(rowIndex, 6).setValue(new Date().toISOString());
+    settlementsSheet.getRange(rowIndex, 6).setValue(confirmTimeStr);
     settlementsSheet.getRange(rowIndex, 7).setValue('Confirmed');
   } else {
     // Add new row if not found
@@ -1280,10 +1565,22 @@ function confirmSettlement(sheet, data, isAdmin) {
       data.to,
       data.amount,
       data.confirmedBy,
-      new Date().toISOString(),
+      confirmTimeStr,
       'Confirmed'
     ]);
   }
+  
+  // Log to audit trail
+  logSettlementAudit(sheet, {
+    settlementId: data.settlementId,
+    action: 'CONFIRM',
+    from: data.from,
+    to: data.to,
+    amount: data.amount,
+    confirmedBy: data.confirmedBy,
+    confirmedAt: confirmTime,
+    notes: isAdmin ? 'Admin confirmed settlement' : 'User confirmed settlement'
+  });
   
   // Invalidate cache when settlement is confirmed (forces recalculation on next request)
   const cacheSheet = getOrCreateSheet(sheet, 'SettlementCache');
