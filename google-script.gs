@@ -240,6 +240,15 @@ function doGet(e) {
         })).setMimeType(ContentService.MimeType.JSON);
       }
       return getUserLinks(sheet);
+    } else if (action === 'getArchivedParticipants') {
+      // Admin only
+      if (accessKey !== ADMIN_KEY) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false,
+          error: 'Admin access required'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      return getArchivedParticipants(sheet);
     } else if (action === 'getCacheTriggerStatus') {
       // Admin only
       if (accessKey !== ADMIN_KEY) {
@@ -434,6 +443,41 @@ function addParticipant(sheet, name) {
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
+function getArchivedParticipants(sheet) {
+  const archivedSheet = getOrCreateSheet(sheet, 'ArchivedParticipants');
+  
+  // Ensure headers exist
+  if (archivedSheet.getLastRow() === 0) {
+    archivedSheet.appendRow(['Name', 'Removed Date', 'Removed By', 'Total Paid', 'Total Owed', 'Net Balance', 'Expenses Count']);
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      archived: []
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  const data = archivedSheet.getDataRange().getValues();
+  const archived = [];
+  
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0]) {
+      archived.push({
+        name: data[i][0],
+        removedDate: data[i][1],
+        removedBy: data[i][2],
+        totalPaid: parseFloat(data[i][3]) || 0,
+        totalOwed: parseFloat(data[i][4]) || 0,
+        netBalance: parseFloat(data[i][5]) || 0,
+        expensesCount: parseInt(data[i][6]) || 0
+      });
+    }
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    archived: archived
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
 function checkParticipantInvolvement(sheet, name) {
   const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
   const expensesData = expensesSheet.getDataRange().getValues();
@@ -558,6 +602,78 @@ function removeParticipant(sheet, name) {
   const participantsSheet = getOrCreateSheet(sheet, 'Participants');
   const data = participantsSheet.getDataRange().getValues();
   
+  // Archive participant before removal to maintain history
+  const archivedParticipantsSheet = getOrCreateSheet(sheet, 'ArchivedParticipants');
+  
+  // Ensure archive sheet has headers
+  if (archivedParticipantsSheet.getLastRow() === 0) {
+    archivedParticipantsSheet.appendRow(['Name', 'Removed Date', 'Removed By', 'Total Paid', 'Total Owed', 'Net Balance', 'Expenses Count']);
+  }
+  
+  // Calculate participant's financial summary before archiving
+  const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
+  const expensesData = expensesSheet.getDataRange().getValues();
+  
+  let totalPaid = 0;
+  let totalOwed = 0;
+  let expensesCount = 0;
+  
+  // Calculate totals from approved expenses only
+  for (let i = 1; i < expensesData.length; i++) {
+    if (expensesData[i][0]) {
+      const paidBy = expensesData[i][3];
+      const splitBetween = expensesData[i][4] ? expensesData[i][4].split(',').map(s => s.trim()) : [];
+      const amount = parseFloat(expensesData[i][5]) || 0;
+      const status = expensesData[i][6] || 'approved';
+      
+      if (status === 'approved') {
+        if (paidBy === name) {
+          totalPaid += amount;
+          expensesCount++;
+        }
+        if (splitBetween.includes(name)) {
+          totalOwed += amount / splitBetween.length;
+        }
+      }
+    }
+  }
+  
+  const netBalance = totalPaid - totalOwed;
+  const removedDate = new Date().toISOString();
+  
+  // Add to archive with financial summary
+  archivedParticipantsSheet.appendRow([
+    name,
+    removedDate,
+    'Admin', // Could be enhanced to track which admin
+    totalPaid.toFixed(2),
+    totalOwed.toFixed(2),
+    netBalance.toFixed(2),
+    expensesCount
+  ]);
+  
+  // Mark expenses involving this participant with archive flag
+  // Add a note to expense descriptions to preserve context
+  for (let i = 1; i < expensesData.length; i++) {
+    if (expensesData[i][0]) {
+      const paidBy = expensesData[i][3];
+      const splitBetween = expensesData[i][4] ? expensesData[i][4].split(',').map(s => s.trim()) : [];
+      
+      if (paidBy === name || splitBetween.includes(name)) {
+        // Add archived marker to submittedBy column if empty or append
+        const currentSubmittedBy = expensesData[i][7] || '';
+        const archivedMarker = `[Participant Archived: ${name} on ${new Date().toLocaleDateString()}]`;
+        
+        if (!currentSubmittedBy.includes('[Participant Archived:')) {
+          expensesSheet.getRange(i + 1, 8).setValue(
+            currentSubmittedBy ? `${currentSubmittedBy} ${archivedMarker}` : archivedMarker
+          );
+        }
+      }
+    }
+  }
+  
+  // Remove from active participants
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === name) {
       participantsSheet.deleteRow(i + 1);
@@ -569,7 +685,14 @@ function removeParticipant(sheet, name) {
   invalidateCache(sheet, 'participants');
   
   return ContentService.createTextOutput(JSON.stringify({
-    success: true
+    success: true,
+    archived: true,
+    financialSummary: {
+      totalPaid: totalPaid.toFixed(2),
+      totalOwed: totalOwed.toFixed(2),
+      netBalance: netBalance.toFixed(2),
+      expensesCount: expensesCount
+    }
   })).setMimeType(ContentService.MimeType.JSON);
 }
 

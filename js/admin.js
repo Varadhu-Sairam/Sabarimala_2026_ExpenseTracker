@@ -148,11 +148,24 @@ window.removeParticipant = async function(name) {
             const confirmMsg = `Remove ${name}?\n\nThis participant has no expenses or settlements.`;
             if (!confirm(confirmMsg)) return;
             
-            Utils.showLoading('Removing participant...');
+            Utils.showLoading('Removing and archiving participant...');
             const result = await API.post('removeParticipant', { name });
             
             if (result.success) {
-                Utils.showStatus('Participant removed successfully!', 'success');
+                let successMsg = `✅ ${name} removed and archived successfully!`;
+                
+                if (result.financialSummary) {
+                    const summary = result.financialSummary;
+                    successMsg += `\n\n📊 Financial Summary:\n`;
+                    successMsg += `• Total Paid: ₹${summary.totalPaid}\n`;
+                    successMsg += `• Total Owed: ₹${summary.totalOwed}\n`;
+                    successMsg += `• Net Balance: ₹${summary.netBalance}\n`;
+                    successMsg += `• Expenses Count: ${summary.expensesCount}\n\n`;
+                    successMsg += `This information has been archived and can be viewed in the Participants tab.`;
+                }
+                
+                alert(successMsg);
+                Utils.showStatus('Participant archived successfully!', 'success');
                 await loadParticipants();
             } else {
                 Utils.showStatus('Error: ' + (result.error || 'Failed to remove participant'), 'error');
@@ -706,17 +719,20 @@ window.deselectAllParticipants = sharedDeselectAll;
 async function loadParticipants() {
     try {
         Utils.showLoading('Loading participants...');
-        const data = await API.get('getParticipants');
+        const [activeData, archivedData] = await Promise.all([
+            API.get('getParticipants'),
+            API.get('getArchivedParticipants')
+        ]);
         
-        if (data.success) {
-            AppState.participants = data.participants;
+        if (activeData.success) {
+            AppState.participants = activeData.participants;
             
             // Update participant list
             const listDiv = document.getElementById('participantList');
-            if (data.participants.length === 0) {
+            if (activeData.participants.length === 0) {
                 listDiv.innerHTML = '<p>No participants yet. Add some above.</p>';
             } else {
-                listDiv.innerHTML = data.participants.map(p => `
+                listDiv.innerHTML = activeData.participants.map(p => `
                     <div class="participant-item">
                         <span>${Utils.escapeHtml(p)}</span>
                         <button class="btn btn-danger btn-icon" onclick="removeParticipant('${Utils.escapeHtml(p)}')" title="Remove participant">
@@ -731,8 +747,46 @@ async function loadParticipants() {
                 `).join('');
             }
             
+            // Display archived participants if any
+            if (archivedData.success && archivedData.archived.length > 0) {
+                const archivedDiv = document.getElementById('archivedParticipantsList');
+                if (archivedDiv) {
+                    archivedDiv.innerHTML = `
+                        <h3 style="margin-top: 30px; color: #666;">📦 Archived Participants (${archivedData.archived.length})</h3>
+                        <div style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
+                            Historical records of removed participants with their financial summaries
+                        </div>
+                        ${archivedData.archived.map(arch => {
+                            const balanceColor = arch.netBalance > 0 ? '#27ae60' : arch.netBalance < 0 ? '#e74c3c' : '#7f8c8d';
+                            const balanceIcon = arch.netBalance > 0 ? '💰' : arch.netBalance < 0 ? '📤' : '✓';
+                            return `
+                                <div class="participant-item" style="background: #f8f9fa; border-left: 3px solid #95a5a6;">
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 600; margin-bottom: 5px;">
+                                            ${Utils.escapeHtml(arch.name)}
+                                            <span style="font-size: 0.85em; color: #666; font-weight: normal;">
+                                                (Archived: ${new Date(arch.removedDate).toLocaleDateString()})
+                                            </span>
+                                        </div>
+                                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 0.85em; color: #555;">
+                                            <div>Paid: <strong>₹${arch.totalPaid.toFixed(2)}</strong></div>
+                                            <div>Owed: <strong>₹${arch.totalOwed.toFixed(2)}</strong></div>
+                                            <div style="color: ${balanceColor};">
+                                                ${balanceIcon} Net: <strong>₹${Math.abs(arch.netBalance).toFixed(2)}</strong>
+                                                ${arch.netBalance > 0 ? '(overpaid)' : arch.netBalance < 0 ? '(underpaid)' : '(settled)'}
+                                            </div>
+                                            <div>Expenses: <strong>${arch.expensesCount}</strong></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    `;
+                }
+            }
+            
             // Populate participant controls (dropdowns and checkboxes)
-            populateParticipantControls(data.participants);
+            populateParticipantControls(activeData.participants);
         }
     } catch (error) {
         console.error('Error loading participants:', error);
