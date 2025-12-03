@@ -230,6 +230,7 @@ window.confirmSettlement = async function(from, to, amount) {
 
 async function loadParticipants() {
     try {
+        Utils.showLoading('Loading participants...');
         const data = await API.get('getParticipants');
         
         if (data.success) {
@@ -261,11 +262,14 @@ async function loadParticipants() {
         }
     } catch (error) {
         console.error('Error loading participants:', error);
+    } finally {
+        Utils.hideLoading();
     }
 }
 
 async function loadExpenses() {
     try {
+        Utils.showLoading('Loading expenses...');
         const data = await API.get('getExpenses');
         
         if (data.success) {
@@ -303,11 +307,14 @@ async function loadExpenses() {
         }
     } catch (error) {
         console.error('Error loading expenses:', error);
+    } finally {
+        Utils.hideLoading();
     }
 }
 
 async function loadMyExpenses() {
     try {
+        Utils.showLoading('Loading your expenses...');
         const userName = AppState.userName || prompt('Enter your name:');
         if (!userName) return;
         
@@ -350,11 +357,14 @@ async function loadMyExpenses() {
         }
     } catch (error) {
         console.error('Error loading my expenses:', error);
+    } finally {
+        Utils.hideLoading();
     }
 }
 
 async function loadMyBalance() {
     try {
+        Utils.showLoading('Loading balance...');
         const data = await API.get('getExpenses');
         
         if (data.success) {
@@ -401,11 +411,14 @@ async function loadMyBalance() {
         }
     } catch (error) {
         console.error('Error loading balance:', error);
+    } finally {
+        Utils.hideLoading();
     }
 }
 
 window.editExpense = async function(id) {
     try {
+        Utils.showLoading('Loading expense details...');
         // Load all expenses to allow editing any expense
         const userName = AppState.userName;
         const myExpensesData = await API.get('getMyExpenses', { userName });
@@ -460,11 +473,14 @@ window.editExpense = async function(id) {
     } catch (error) {
         console.error('Error editing expense:', error);
         alert('Error loading expense for editing');
+    } finally {
+        Utils.hideLoading();
     }
 };
 
 async function loadSummary() {
     try {
+        Utils.showLoading('Loading summary...');
         const data = await API.get('getExpenses');
         
         if (!data.success) return;
@@ -528,11 +544,14 @@ async function loadSummary() {
         }
     } catch (error) {
         console.error('Error loading summary:', error);
+    } finally {
+        Utils.hideLoading();
     }
 }
 
 async function loadSettlements() {
     try {
+        Utils.showLoading('Loading settlements...');
         // Calculate settlements on backend and get results
         const [settlementsData, confirmationsData] = await Promise.all([
             API.get('calculateSettlements'),
@@ -600,6 +619,8 @@ async function loadSettlements() {
         }
     } catch (error) {
         console.error('Error loading settlements:', error);
+    } finally {
+        Utils.hideLoading();
     }
 }
 
@@ -690,6 +711,9 @@ async function decryptData(encryptedStr) {
     // Set today's date
     document.getElementById('expenseDate').valueAsDate = new Date();
     
+    // Show loading overlay for initial data load
+    Utils.showLoading('Loading...');
+    
     // Load participants and check if user needs to register
     const participantsData = await API.get('getParticipants');
     if (participantsData.success) {
@@ -702,9 +726,11 @@ async function decryptData(encryptedStr) {
             await loadParticipants();
             await loadExpenses();
             await loadSettlements();
+            Utils.hideLoading();
         } else {
             // Generic/shared link - always show registration for new users
             document.getElementById('registrationSection').classList.remove('hidden');
+            Utils.hideLoading();
         }
     }
 })();
