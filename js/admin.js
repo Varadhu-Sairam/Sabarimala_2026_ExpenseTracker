@@ -226,8 +226,10 @@ window.approveExpense = async function(id) {
 };
 
 window.editExpenseAdmin = async function(id) {
+    // Show loading overlay immediately before any async operations
+    Utils.showLoading('Loading expense details...');
+    
     try {
-        Utils.showLoading('Loading expense details...');
         // Load expense data
         const data = await API.get('getExpenses');
         
@@ -263,8 +265,15 @@ window.editExpenseAdmin = async function(id) {
             submitBtn.textContent = '✏️ Update Expense';
         }
         
-        // Switch to expenses tab using existing helper
-        switchTab('expenses', null);
+        // Switch to expenses tab - manually switch without triggering loadExpenses
+        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        const expensesTab = document.querySelector('.tab[onclick*="expenses"]');
+        if (expensesTab) expensesTab.classList.add('active');
+        document.getElementById('expenses').classList.add('active');
+        
+        // Scroll to form
+        document.getElementById('expenseForm').scrollIntoView({ behavior: 'smooth' });
         
         Utils.showStatus('Editing expense as admin (no approval needed)', 'info');
     } catch (error) {
