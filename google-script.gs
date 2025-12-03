@@ -111,20 +111,20 @@ function refreshAllCaches() {
 // ========================================
 
 /**
- * Creates a time-based trigger to refresh caches every 4 minutes
+ * Creates a time-based trigger to refresh caches every 5 minutes
  * This keeps caches warm and ensures data is synced even without user requests
  */
 function setupCacheRefreshTrigger() {
   // Delete existing triggers to avoid duplicates
   deleteCacheRefreshTrigger();
   
-  // Create new trigger to run every 4 minutes
+  // Create new trigger to run every 5 minutes (Google Apps Script allowed intervals: 1, 5, 10, 15, 30)
   ScriptApp.newTrigger('refreshAllCaches')
     .timeBased()
-    .everyMinutes(4)
+    .everyMinutes(5)
     .create();
   
-  Logger.log('Cache refresh trigger created - will run every 4 minutes');
+  Logger.log('Cache refresh trigger created - will run every 5 minutes');
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
     message: 'Cache refresh trigger created successfully'

@@ -1118,7 +1118,7 @@ async function loadCacheSettings() {
         const statusText = document.getElementById('triggerStatusText');
         
         if (result.enabled) {
-            statusText.innerHTML = '<span style="color: #27ae60;">✅ Auto-refresh enabled (every 4 minutes)</span>';
+            statusText.innerHTML = '<span style="color: #27ae60;">✅ Auto-refresh enabled (every 5 minutes)</span>';
         } else {
             statusText.innerHTML = '<span style="color: #7f8c8d;">⏸️ Auto-refresh disabled (manual only)</span>';
         }
@@ -1134,7 +1134,7 @@ window.enableCacheTrigger = async function() {
         const result = await API.get('setupCacheTrigger');
         
         if (result.success) {
-            Utils.showStatus('✅ Automatic cache refresh enabled! Data will be refreshed every 4 minutes.', 'success');
+            Utils.showStatus('✅ Automatic cache refresh enabled! Data will be refreshed every 5 minutes.', 'success');
             await loadCacheSettings();
         } else {
             Utils.showStatus(`Error: ${result.error || 'Failed to enable auto-refresh'}`, 'error');

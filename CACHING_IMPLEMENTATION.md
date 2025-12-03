@@ -92,21 +92,23 @@ All expense operations invalidate both admin and user expense caches:
 ### Time-Driven Trigger
 The app includes built-in trigger management accessible from the admin page:
 
-1. **Enable Auto-Refresh**: Activates a time-based trigger that refreshes all caches every 4 minutes
+1. **Enable Auto-Refresh**: Activates a time-based trigger that refreshes all caches every 5 minutes
 2. **Disable Auto-Refresh**: Removes the trigger (caches only update on data changes)
 3. **Refresh Now**: Manually triggers an immediate cache refresh
 
 ### Management Functions
-- `setupCacheRefreshTrigger()`: Creates trigger for 4-minute intervals
+- `setupCacheRefreshTrigger()`: Creates trigger for 5-minute intervals
 - `deleteCacheRefreshTrigger()`: Removes the automatic refresh trigger
 - `getCacheRefreshTriggerStatus()`: Checks if auto-refresh is enabled
 
 ### How It Works
-When enabled, the trigger calls `refreshAllCaches()` every 4 minutes, ensuring:
+When enabled, the trigger calls `refreshAllCaches()` every 5 minutes, ensuring:
 - Caches stay warm even without user activity
-- Data is always fresh (< 4 minutes old)
+- Data is always fresh (≤ 5 minutes old)
 - Fast loading for all users
 - Background synchronization without manual intervention
+
+**Note**: Google Apps Script allows trigger intervals of 1, 5, 10, 15, or 30 minutes. We use 5 minutes to match the cache expiration time.
 
 ## Testing Recommendations
 
