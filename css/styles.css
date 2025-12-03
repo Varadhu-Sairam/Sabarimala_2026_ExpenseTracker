@@ -165,6 +165,15 @@ textarea:focus {
     border-color: #667eea;
 }
 
+/* Field-specific error messages */
+.field-error {
+    color: #dc3545;
+    font-size: 0.875em;
+    margin-top: 4px;
+    min-height: 1.25em;
+    display: block;
+}
+
 /* ==================== BUTTONS ==================== */
 
 .btn {
