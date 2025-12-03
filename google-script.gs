@@ -1148,6 +1148,9 @@ function approveRegistration(sheet, data) {
         userLinksSheet.appendRow([name, encryptedToken, userLink, new Date(), 'user']);
       }
       
+      // Invalidate participants cache immediately after approval
+      invalidateCache(sheet, 'participants');
+
       return ContentService.createTextOutput(JSON.stringify({
         success: true,
         message: 'Registration approved',
