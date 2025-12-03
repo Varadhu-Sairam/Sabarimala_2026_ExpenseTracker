@@ -436,6 +436,7 @@ window.copyLinkToClipboard = function(link) {
 
 async function loadPendingRegistrations() {
     try {
+        Utils.showLoading('Loading registrations...');
         const data = await API.get('getPendingRegistrations');
         if (data.success) {
             const listDiv = document.getElementById('registrationList');
@@ -458,6 +459,8 @@ async function loadPendingRegistrations() {
         }
     } catch (error) {
         console.error('Error loading registrations:', error);
+    } finally {
+        Utils.hideLoading();
     }
 }
 
@@ -514,6 +517,7 @@ window.addSharedUserLink = async function() {
 
 async function loadUserLinks() {
     try {
+        Utils.showLoading('Loading user links...');
         const data = await API.get('getUserLinks');
         if (data.success) {
             const listDiv = document.getElementById('userLinksList');
@@ -539,6 +543,8 @@ async function loadUserLinks() {
         }
     } catch (error) {
         console.error('Error loading user links:', error);
+    } finally {
+        Utils.hideLoading();
     }
 }
 
@@ -719,6 +725,7 @@ async function loadExpenses() {
 
 async function loadSummary() {
     try {
+        Utils.showLoading('Loading summary...');
         const data = await API.get('getExpenses');
         
         if (!data.success) return;
@@ -782,11 +789,14 @@ async function loadSummary() {
         }
     } catch (error) {
         console.error('Error loading summary:', error);
+    } finally {
+        Utils.hideLoading();
     }
 }
 
 async function loadAdminBalance() {
     try {
+        Utils.showLoading('Loading balance...');
         // Get admin's personal name from decrypted data
         const adminName = AppState.decryptedData?.userName;
         
@@ -869,6 +879,8 @@ async function loadAdminBalance() {
     } catch (error) {
         console.error('Error loading admin balance:', error);
         document.getElementById('adminBalanceSummary').innerHTML = '<p>Error loading balance information.</p>';
+    } finally {
+        Utils.hideLoading();
     }
 }
 
@@ -909,6 +921,7 @@ function displayAdminBalance(balance, amountPaid, amountOwed) {
 
 async function loadSettlements() {
     try {
+        Utils.showLoading('Loading settlements...');
         // Calculate settlements on backend and get results
         const [settlementsData, confirmationsData] = await Promise.all([
             API.get('calculateSettlements'),
@@ -966,6 +979,8 @@ async function loadSettlements() {
         }
     } catch (error) {
         console.error('Error loading settlements:', error);
+    } finally {
+        Utils.hideLoading();
     }
 }
 
@@ -1121,6 +1136,9 @@ async function encryptData(data) {
     // Set today's date
     document.getElementById('expenseDate').valueAsDate = new Date();
     
+    // Show loading overlay for initial data load
+    Utils.showLoading('Loading dashboard...');
+    
     // Load data
     await loadPendingExpenses();
     await loadPendingRegistrations();
@@ -1128,6 +1146,9 @@ async function encryptData(data) {
     await loadUserLinks();
     await loadExpenses();
     await loadSettlements();
+    
+    // Hide initial loading overlay
+    Utils.hideLoading();
 })();
 
 // === CACHE MANAGEMENT ===
