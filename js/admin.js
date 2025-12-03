@@ -15,13 +15,12 @@ window.switchTab = function(tabName, event) {
     if (event && event.target) {
         event.target.classList.add('active');
     } else {
-        // Fallback: find button by tab name
-        const buttons = document.querySelectorAll('.tab');
-        buttons.forEach(btn => {
-            if (btn.onclick && btn.onclick.toString().includes(`'${tabName}'`)) {
-                btn.classList.add('active');
-            }
-        });
+        // Fallback: find the tab button by its onclick attribute
+        const selector = `.tabs .tab[onclick*="switchTab('${tabName}'"]`;
+        const btn = document.querySelector(selector);
+        if (btn) {
+            btn.classList.add('active');
+        }
     }
     document.getElementById(tabName).classList.add('active');
     
