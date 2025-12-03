@@ -100,8 +100,8 @@ function refreshAllCaches() {
   const userExpenses = getExpensesData(sheet, false);
   setCachedData(sheet, 'expenses_user', userExpenses);
   
-  // Refresh settlements cache
-  calculateAndStoreSettlementsWithCache(sheet);
+  // Refresh settlements cache (this function already handles caching internally)
+  calculateAndStoreSettlements(sheet);
   
   Logger.log('All caches refreshed at ' + new Date());
 }
