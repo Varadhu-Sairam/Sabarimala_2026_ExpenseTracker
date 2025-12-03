@@ -322,6 +322,7 @@ function doPost(e) {
     // Admin-only actions
     if (data.action === 'approveExpense' || data.action === 'rejectExpense' ||
         data.action === 'addParticipant' || data.action === 'removeParticipant' ||
+        data.action === 'checkParticipantInvolvement' ||
         data.action === 'approveRegistration' || data.action === 'rejectRegistration') {
       
       if (!isAdmin) {
@@ -337,6 +338,8 @@ function doPost(e) {
         return rejectExpense(sheet, data);
       } else if (data.action === 'addParticipant') {
         return addParticipant(sheet, data.name);
+      } else if (data.action === 'checkParticipantInvolvement') {
+        return checkParticipantInvolvement(sheet, data.name);
       } else if (data.action === 'removeParticipant') {
         return removeParticipant(sheet, data.name);
       } else if (data.action === 'approveRegistration') {
@@ -428,6 +431,126 @@ function addParticipant(sheet, name) {
   
   return ContentService.createTextOutput(JSON.stringify({
     success: true
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function checkParticipantInvolvement(sheet, name) {
+  const expensesSheet = getOrCreateSheet(sheet, 'Expenses');
+  const expensesData = expensesSheet.getDataRange().getValues();
+  
+  const involvedExpenses = [];
+  
+  // Check all expenses where participant is involved
+  for (let i = 1; i < expensesData.length; i++) {
+    if (expensesData[i][0]) {
+      const paidBy = expensesData[i][3];
+      const splitBetween = expensesData[i][4] ? expensesData[i][4].split(',').map(s => s.trim()) : [];
+      const status = expensesData[i][6] || 'approved';
+      
+      // Check if participant paid or is part of split AND expense is approved or pending
+      if ((paidBy === name || splitBetween.includes(name)) && status !== 'rejected') {
+        involvedExpenses.push({
+          id: expensesData[i][0],
+          date: expensesData[i][1],
+          description: expensesData[i][2],
+          paidBy: paidBy,
+          splitBetween: splitBetween,
+          amount: parseFloat(expensesData[i][5]) || 0,
+          status: status
+        });
+      }
+    }
+  }
+  
+  // Calculate settlements to check for pending payments
+  const pendingSettlements = [];
+  
+  if (involvedExpenses.length > 0) {
+    // Only calculate settlements if there are approved expenses
+    const approvedExpenses = involvedExpenses.filter(e => e.status === 'approved');
+    
+    if (approvedExpenses.length > 0) {
+      const balances = {};
+      
+      // Calculate balances
+      approvedExpenses.forEach(expense => {
+        const share = expense.amount / expense.splitBetween.length;
+        
+        // Person who paid gets credited
+        if (!balances[expense.paidBy]) balances[expense.paidBy] = 0;
+        balances[expense.paidBy] += expense.amount;
+        
+        // People in split get debited
+        expense.splitBetween.forEach(person => {
+          if (!balances[person]) balances[person] = 0;
+          balances[person] -= share;
+        });
+      });
+      
+      // Get confirmed settlements
+      const settlementsSheet = getOrCreateSheet(sheet, 'SettlementConfirmations');
+      const settlementsData = settlementsSheet.getDataRange().getValues();
+      
+      // Apply confirmed settlements to balances
+      for (let i = 1; i < settlementsData.length; i++) {
+        if (settlementsData[i][0]) {
+          const from = settlementsData[i][0];
+          const to = settlementsData[i][1];
+          const amount = parseFloat(settlementsData[i][2]) || 0;
+          
+          if (balances[from] !== undefined) balances[from] += amount;
+          if (balances[to] !== undefined) balances[to] -= amount;
+        }
+      }
+      
+      // Check if participant has non-zero balance
+      if (balances[name] && Math.abs(balances[name]) > 0.01) {
+        // Find who they owe or who owes them
+        for (const person in balances) {
+          if (person !== name && Math.abs(balances[person]) > 0.01) {
+            // Simple check: if participant owes money (negative balance)
+            if (balances[name] < -0.01) {
+              const creditors = Object.keys(balances).filter(p => balances[p] > 0.01);
+              creditors.forEach(creditor => {
+                const settlementAmount = Math.min(Math.abs(balances[name]), balances[creditor]);
+                if (settlementAmount > 0.01) {
+                  pendingSettlements.push({
+                    from: name,
+                    to: creditor,
+                    amount: settlementAmount
+                  });
+                }
+              });
+              break;
+            }
+            // If participant is owed money (positive balance)
+            else if (balances[name] > 0.01) {
+              const debtors = Object.keys(balances).filter(p => balances[p] < -0.01);
+              debtors.forEach(debtor => {
+                const settlementAmount = Math.min(balances[name], Math.abs(balances[debtor]));
+                if (settlementAmount > 0.01) {
+                  pendingSettlements.push({
+                    from: debtor,
+                    to: name,
+                    amount: settlementAmount
+                  });
+                }
+              });
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  const hasInvolvement = involvedExpenses.length > 0 || pendingSettlements.length > 0;
+  
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    hasInvolvement: hasInvolvement,
+    involvedExpenses: involvedExpenses,
+    pendingSettlements: pendingSettlements
   })).setMimeType(ContentService.MimeType.JSON);
 }
 

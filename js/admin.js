@@ -92,20 +92,74 @@ window.addParticipant = async function() {
 };
 
 window.removeParticipant = async function(name) {
-    if (!confirm(`Remove ${name}?`)) return;
-    
-    Utils.showLoading('Removing participant...');
+    Utils.showLoading('Checking participant involvement...');
     
     try {
-        const result = await API.post('removeParticipant', { name });
+        // Check if participant has any involvement in expenses or settlements
+        const checkResult = await API.post('checkParticipantInvolvement', { name });
         
-        if (result.success) {
-            Utils.showStatus('Participant removed', 'success');
-            await loadParticipants();
+        if (!checkResult.success) {
+            Utils.showStatus('Error checking participant involvement', 'error');
+            return;
+        }
+        
+        if (checkResult.hasInvolvement) {
+            // Show detailed information about involvement
+            let message = `Cannot remove ${name} because they are involved in:\n\n`;
+            
+            if (checkResult.involvedExpenses && checkResult.involvedExpenses.length > 0) {
+                message += `📊 EXPENSES (${checkResult.involvedExpenses.length}):\n`;
+                checkResult.involvedExpenses.forEach(exp => {
+                    const status = exp.status === 'approved' ? '✅' : exp.status === 'pending' ? '⏳' : '❌';
+                    message += `  ${status} ${exp.description} - ₹${exp.amount.toFixed(2)}`;
+                    if (exp.paidBy === name) {
+                        message += ` (paid by ${name})`;
+                    }
+                    if (exp.splitBetween.includes(name)) {
+                        message += ` (owes ₹${(exp.amount / exp.splitBetween.length).toFixed(2)})`;
+                    }
+                    message += `\n`;
+                });
+                message += '\n';
+            }
+            
+            if (checkResult.pendingSettlements && checkResult.pendingSettlements.length > 0) {
+                message += `💰 PENDING SETTLEMENTS (${checkResult.pendingSettlements.length}):\n`;
+                checkResult.pendingSettlements.forEach(settlement => {
+                    if (settlement.from === name) {
+                        message += `  ${name} owes ₹${settlement.amount.toFixed(2)} to ${settlement.to}\n`;
+                    } else {
+                        message += `  ${settlement.from} owes ₹${settlement.amount.toFixed(2)} to ${name}\n`;
+                    }
+                });
+                message += '\n';
+            }
+            
+            message += `\n⚠️ REQUIRED ACTIONS:\n`;
+            message += `1. Edit expenses involving ${name} to redistribute splits\n`;
+            message += `2. Settle all pending payments involving ${name}\n`;
+            message += `3. Confirm all settlements are marked as paid\n`;
+            message += `\nOnly then can ${name} be removed from the group.`;
+            
+            alert(message);
+            Utils.showStatus(`Cannot remove ${name} - participant has unsettled expenses/settlements`, 'error');
         } else {
-            Utils.showStatus('Error: ' + (result.error || 'Failed to remove participant'), 'error');
+            // Safe to remove - no involvement
+            const confirmMsg = `Remove ${name}?\n\nThis participant has no expenses or settlements.`;
+            if (!confirm(confirmMsg)) return;
+            
+            Utils.showLoading('Removing participant...');
+            const result = await API.post('removeParticipant', { name });
+            
+            if (result.success) {
+                Utils.showStatus('Participant removed successfully!', 'success');
+                await loadParticipants();
+            } else {
+                Utils.showStatus('Error: ' + (result.error || 'Failed to remove participant'), 'error');
+            }
         }
     } catch (error) {
+        console.error('Error removing participant:', error);
         Utils.showStatus('Error removing participant', 'error');
     } finally {
         Utils.hideLoading();
