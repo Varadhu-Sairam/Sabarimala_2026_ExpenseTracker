@@ -258,16 +258,13 @@ window.editExpenseAdmin = async function(id) {
         // Store the id for update using form dataset
         const form = document.getElementById('expenseForm');
         form.dataset.editId = id;
-        const submitBtn = document.querySelector('#expenseManagement button[onclick="submitExpense()"]');
+        const submitBtn = document.getElementById('submitBtn');
         if (submitBtn) {
             submitBtn.textContent = '✏️ Update Expense';
         }
         
-        // Switch to expense management tab
-        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-        document.querySelector('.tab[onclick*="expenseManagement"]').classList.add('active');
-        document.getElementById('expenseManagement').classList.add('active');
+        // Switch to expenses tab using existing helper
+        switchTab('expenses', null);
         
         Utils.showStatus('Editing expense as admin (no approval needed)', 'info');
     } catch (error) {
