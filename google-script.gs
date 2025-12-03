@@ -1150,6 +1150,10 @@ function approveRegistration(sheet, data) {
       
       // Invalidate participants cache immediately after approval
       invalidateCache(sheet, 'participants');
+      
+      // Immediately refresh the participants cache with new data
+      const updatedParticipants = getParticipantsData(sheet);
+      setCachedData(sheet, 'participants', updatedParticipants);
 
       return ContentService.createTextOutput(JSON.stringify({
         success: true,
